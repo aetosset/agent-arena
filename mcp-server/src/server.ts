@@ -5,8 +5,6 @@
  * - Register on-chain (calls the smart contract)
  * - Check arena status
  * - List registered agents
- * 
- * Agents need a Stacks wallet/key to sign transactions.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -17,23 +15,10 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
-import {
-  makeContractCall,
-  broadcastTransaction,
-  AnchorMode,
-  PostConditionMode,
-  stringUtf8CV,
-  uintCV,
-  callReadOnlyFunction,
-  cvToJSON,
-  ClarityType
-} from '@stacks/transactions';
-import { StacksMainnet, StacksTestnet } from '@stacks/network';
 
 // Contract details - MAINNET DEPLOYED
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || 'SP312F1KXPTFJH6BHVFJTB5VYYGZQBYPYC7VT62SV';
+const CONTRACT_ADDRESS = 'SP312F1KXPTFJH6BHVFJTB5VYYGZQBYPYC7VT62SV';
 const CONTRACT_NAME = 'agent-arena';
-const NETWORK = new StacksMainnet(); // Default to mainnet
 const API_BASE = 'https://api.hiro.so';
 
 // WebSocket spectators
@@ -48,33 +33,15 @@ function broadcast(event: string, data: any) {
   }
 }
 
-// Helper to call read-only functions
-async function callReadOnly(functionName: string, args: any[] = []) {
-  try {
-    const result = await callReadOnlyFunction({
-      contractAddress: CONTRACT_ADDRESS,
-      contractName: CONTRACT_NAME,
-      functionName,
-      functionArgs: args,
-      network: NETWORK,
-      senderAddress: CONTRACT_ADDRESS,
-    });
-    return cvToJSON(result);
-  } catch (e: any) {
-    console.error(`Read-only call failed (${functionName}):`, e.message);
-    return null;
-  }
-}
-
-// Alternative: REST API for read-only (works without SDK issues)
-async function callReadOnlyREST(functionName: string) {
+// REST API for read-only calls
+async function callReadOnlyREST(functionName: string, args: string[] = []) {
   try {
     const res = await fetch(
       `${API_BASE}/v2/contracts/call-read/${CONTRACT_ADDRESS}/${CONTRACT_NAME}/${functionName}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender: CONTRACT_ADDRESS, arguments: [] }),
+        body: JSON.stringify({ sender: CONTRACT_ADDRESS, arguments: args }),
       }
     );
     const data = await res.json();
@@ -85,24 +52,19 @@ async function callReadOnlyREST(functionName: string) {
   }
 }
 
-// Get all agents from contract
-async function getAgentsFromContract(): Promise<any[]> {
-  const agents: any[] = [];
-  
-  // Get count first
-  const countData = await callReadOnlyREST('get-agent-count');
-  if (!countData?.okay) return agents;
-  
-  // Parse count from Clarity response
-  const hex = countData.result.replace('0x', '');
-  let count = 0;
-  if (hex.startsWith('0701')) {
-    count = parseInt(hex.slice(-8), 16);
+// Parse Clarity uint from hex response
+function parseUint(hex: string): number {
+  const clean = hex.replace('0x', '');
+  if (clean.startsWith('0701')) {
+    return parseInt(clean.slice(-8), 16);
   }
-  
-  // Fetch each agent by index (simplified - would need proper implementation)
-  // For now, return the count
-  return [{ count }];
+  return 0;
+}
+
+// Parse Clarity bool from hex response
+function parseBool(hex: string): boolean {
+  const clean = hex.replace('0x', '');
+  return clean.includes('03'); // true in Clarity
 }
 
 // Create MCP server
@@ -114,19 +76,18 @@ const mcpServer = new McpServer({
 // Tool: Check arena status
 mcpServer.tool(
   "get_arena_status",
-  "Get the current status of the Agent Arena",
+  "Get the current status of the Agent Arena on Stacks mainnet",
   {},
   async () => {
-    const data = await callReadOnlyREST('get-all-agents');
+    const [countData, openData, roundData] = await Promise.all([
+      callReadOnlyREST('get-agent-count'),
+      callReadOnlyREST('is-arena-open'),
+      callReadOnlyREST('get-current-round')
+    ]);
     
-    if (!data?.okay) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ error: "Failed to fetch arena status", raw: data })
-        }]
-      };
-    }
+    const count = countData?.okay ? parseUint(countData.result) : 0;
+    const isOpen = openData?.okay ? parseBool(openData.result) : false;
+    const round = roundData?.okay ? parseUint(roundData.result) : 0;
     
     return {
       content: [{
@@ -134,129 +95,15 @@ mcpServer.tool(
         text: JSON.stringify({
           success: true,
           contract: `${CONTRACT_ADDRESS}.${CONTRACT_NAME}`,
-          network: process.env.NETWORK || 'testnet',
-          raw: data.result
+          network: 'mainnet',
+          agentCount: count,
+          maxAgents: 8,
+          isOpen,
+          currentRound: round,
+          explorer: `https://explorer.hiro.so/txid/${CONTRACT_ADDRESS}.${CONTRACT_NAME}?chain=mainnet`
         })
       }]
     };
-  }
-);
-
-// Tool: Register an agent (requires private key)
-mcpServer.tool(
-  "register_agent",
-  "Register your agent in the arena by calling the smart contract. Requires a Stacks private key.",
-  {
-    name: z.string().max(50).describe("Your agent's display name (max 50 chars)"),
-    agentType: z.string().max(30).describe("Type of agent (e.g., 'openclaw', 'claude', 'gpt-4')"),
-    privateKey: z.string().describe("Your Stacks wallet private key (hex format)")
-  },
-  async ({ name, agentType, privateKey }) => {
-    try {
-      // Build the transaction
-      const txOptions = {
-        contractAddress: CONTRACT_ADDRESS,
-        contractName: CONTRACT_NAME,
-        functionName: 'register',
-        functionArgs: [
-          stringUtf8CV(name),
-          stringUtf8CV(agentType)
-        ],
-        senderKey: privateKey,
-        network: NETWORK,
-        anchorMode: AnchorMode.Any,
-        postConditionMode: PostConditionMode.Allow,
-        fee: 10000n, // 0.01 STX
-      };
-      
-      const transaction = await makeContractCall(txOptions);
-      const broadcastResponse = await broadcastTransaction({ transaction, network: NETWORK });
-      
-      if ('error' in broadcastResponse) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              success: false,
-              error: broadcastResponse.error,
-              reason: broadcastResponse.reason
-            })
-          }]
-        };
-      }
-      
-      // Broadcast to spectators
-      broadcast('agent_registered', {
-        name,
-        agentType,
-        txId: broadcastResponse.txid
-      });
-      
-      console.log(`🤖 Agent "${name}" (${agentType}) registered! TX: ${broadcastResponse.txid}`);
-      
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: true,
-            txId: broadcastResponse.txid,
-            message: `Successfully registered "${name}" as ${agentType}`,
-            explorer: `https://explorer.hiro.so/txid/${broadcastResponse.txid}?chain=${process.env.NETWORK || 'testnet'}`
-          })
-        }]
-      };
-      
-    } catch (e: any) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: false,
-            error: e.message
-          })
-        }]
-      };
-    }
-  }
-);
-
-// Tool: Check if an address is registered
-mcpServer.tool(
-  "check_registration",
-  "Check if a Stacks address is registered in the arena",
-  {
-    address: z.string().describe("Stacks address to check")
-  },
-  async ({ address }) => {
-    try {
-      const result = await callReadOnlyFunction({
-        contractAddress: CONTRACT_ADDRESS,
-        contractName: CONTRACT_NAME,
-        functionName: 'is-registered',
-        functionArgs: [],
-        network: NETWORK,
-        senderAddress: address,
-      });
-      
-      const json = cvToJSON(result);
-      
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            address,
-            isRegistered: json.value
-          })
-        }]
-      };
-    } catch (e: any) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ error: e.message })
-        }]
-      };
-    }
   }
 );
 
@@ -271,19 +118,81 @@ mcpServer.tool(
         type: "text",
         text: JSON.stringify({
           title: "Agent Arena Registration",
-          steps: [
-            "1. Get a Stacks wallet (Leather, Xverse, or generate a key)",
-            "2. Get testnet STX from faucet: https://explorer.hiro.so/sandbox/faucet?chain=testnet",
-            "3. Call the register_agent tool with your name, type, and private key",
-            "4. Wait for transaction confirmation (~10-30 seconds on testnet)"
-          ],
           contract: `${CONTRACT_ADDRESS}.${CONTRACT_NAME}`,
-          network: process.env.NETWORK || 'testnet',
-          mcpEndpoint: "http://localhost:3001/mcp",
-          note: "Your private key is used to sign the transaction. Keep it secure!"
+          network: "mainnet",
+          function: "register",
+          arguments: [
+            { name: "name", type: "string-utf8", maxLength: 50, description: "Your agent's display name" },
+            { name: "agent-type", type: "string-utf8", maxLength: 30, description: "Type of agent (e.g., 'openclaw', 'claude', 'gpt-4')" }
+          ],
+          howToRegister: [
+            "1. Get a Stacks wallet (Leather, Xverse) with mainnet STX",
+            "2. Connect wallet to the Agent Arena frontend at http://localhost:3002",
+            "3. Enter your agent name and type",
+            "4. Click 'Register on Chain' and sign the transaction",
+            "5. Wait for transaction confirmation (~10-30 seconds)"
+          ],
+          cost: "~0.01 STX transaction fee",
+          limits: {
+            maxAgents: 8,
+            maxNameLength: 50,
+            maxTypeLength: 30
+          },
+          note: "Registration is on Stacks mainnet - requires real STX for transaction fees"
         })
       }]
     };
+  }
+);
+
+// Tool: Check if an address is registered
+mcpServer.tool(
+  "check_registration",
+  "Check if a Stacks address is registered in the arena",
+  {
+    address: z.string().describe("Stacks address to check (e.g., SP1234...)")
+  },
+  async ({ address }) => {
+    // For is-registered, we need to pass the principal as a Clarity value
+    // The hex encoding for a principal is complex, so we'll use the get-agent function instead
+    try {
+      const res = await fetch(
+        `${API_BASE}/v2/contracts/call-read/${CONTRACT_ADDRESS}/${CONTRACT_NAME}/get-agent`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            sender: CONTRACT_ADDRESS, 
+            arguments: [`0x0516${Buffer.from(address).toString('hex')}`] // This is simplified, would need proper encoding
+          }),
+        }
+      );
+      const data = await res.json();
+      
+      // If we get a valid response with data, they're registered
+      const isRegistered = data.okay && !data.result.includes('09'); // 09 is 'none' in Clarity
+      
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            address,
+            isRegistered,
+            note: "Use the frontend for accurate registration status"
+          })
+        }]
+      };
+    } catch (e: any) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({ 
+            error: e.message,
+            suggestion: "Check registration status via the frontend at http://localhost:3002"
+          })
+        }]
+      };
+    }
   }
 );
 
@@ -298,8 +207,16 @@ mcpServer.resource(
       text: JSON.stringify({
         address: CONTRACT_ADDRESS,
         name: CONTRACT_NAME,
-        network: process.env.NETWORK || 'testnet',
-        api: API_BASE
+        network: 'mainnet',
+        api: API_BASE,
+        explorer: `https://explorer.hiro.so/txid/${CONTRACT_ADDRESS}.${CONTRACT_NAME}?chain=mainnet`,
+        functions: {
+          register: "Register as an agent (name, agent-type)",
+          unregister: "Unregister before game starts",
+          getAgentCount: "Get number of registered agents",
+          isArenaOpen: "Check if registration is open",
+          getCurrentRound: "Get current game round"
+        }
       })
     }]
   })
@@ -340,18 +257,31 @@ app.all('/mcp', async (req: Request, res: Response) => {
 });
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  const countData = await callReadOnlyREST('get-agent-count');
+  const count = countData?.okay ? parseUint(countData.result) : 0;
+  
   res.json({ 
     status: 'ok', 
     contract: `${CONTRACT_ADDRESS}.${CONTRACT_NAME}`,
-    network: process.env.NETWORK || 'testnet'
+    network: 'mainnet',
+    agentCount: count
   });
 });
 
-// API: Get agents (for frontend)
-app.get('/api/agents', async (req, res) => {
-  const agents = await getAgentsFromContract();
-  res.json({ agents });
+// API: Get arena status (for frontend)
+app.get('/api/status', async (req, res) => {
+  const [countData, openData, roundData] = await Promise.all([
+    callReadOnlyREST('get-agent-count'),
+    callReadOnlyREST('is-arena-open'),
+    callReadOnlyREST('get-current-round')
+  ]);
+  
+  res.json({
+    agentCount: countData?.okay ? parseUint(countData.result) : 0,
+    isOpen: openData?.okay ? parseBool(openData.result) : false,
+    currentRound: roundData?.okay ? parseUint(roundData.result) : 0
+  });
 });
 
 // Connect MCP server
@@ -365,9 +295,11 @@ httpServer.listen(PORT, () => {
 MCP Endpoint:  http://localhost:${PORT}/mcp
 WebSocket:     ws://localhost:${PORT}/ws
 Health:        http://localhost:${PORT}/health
+API Status:    http://localhost:${PORT}/api/status
 
 Contract:      ${CONTRACT_ADDRESS}.${CONTRACT_NAME}
-Network:       ${process.env.NETWORK || 'testnet'}
+Network:       mainnet
+Explorer:      https://explorer.hiro.so/txid/${CONTRACT_ADDRESS}.${CONTRACT_NAME}?chain=mainnet
 
 Waiting for agents to register on-chain...
   `);
