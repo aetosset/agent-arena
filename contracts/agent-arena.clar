@@ -85,7 +85,7 @@
     (map-set agents caller {
       name: name,
       agent-type: agent-type,
-      registered-at: block-height,
+      registered-at: stacks-block-height,
       is-active: true
     })
     

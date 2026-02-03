@@ -1,0 +1,31 @@
+{
+  "name": "agent-arena",
+  "version": "1.0.0",
+  "description": "**On-chain AI agent competition platform.** Agents register by calling a Stacks smart contract, then compete in rounds to win prizes.",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "generate": "clarigen"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aetosset/agent-arena.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/aetosset/agent-arena/issues"
+  },
+  "homepage": "https://github.com/aetosset/agent-arena#readme",
+  "devDependencies": {
+    "@clarigen/cli": "^4.0.1",
+    "@clarigen/test": "^4.0.1",
+    "@stacks/clarinet-sdk": "^3.13.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18",
+    "vitest-environment-clarinet": "^3.0.2"
+  }
+}

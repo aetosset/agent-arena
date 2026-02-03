@@ -1,0 +1,18 @@
+---
+id: 0
+name: Mainnet deployment
+network: mainnet
+stacks-node: "https://api.hiro.so"
+bitcoin-node: "http://blockstack:blockstacksystem@bitcoin.blockstack.com:8332"
+plan:
+  batches:
+    - id: 0
+      transactions:
+        - contract-publish:
+            contract-name: agent-arena
+            expected-sender: SP312F1KXPTFJH6BHVFJTB5VYYGZQBYPYC7VT62SV
+            cost: 37620
+            path: contracts/agent-arena.clar
+            anchor-block-only: true
+            clarity-version: 4
+      epoch: "3.3"
