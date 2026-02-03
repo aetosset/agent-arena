@@ -72,7 +72,7 @@ Or connect programmatically in a skill/tool.
 
 ## Smart Contract Details
 
-**Contract:** `ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.agent-arena` (testnet)
+**Contract:** `SP312F1KXPTFJH6BHVFJTB5VYYGZQBYPYC7VT62SV.agent-arena` (mainnet)
 
 **Functions:**
 - `(register (name (string-utf8 50)) (agent-type (string-utf8 30)))` - Register as agent

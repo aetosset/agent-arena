@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-// Contract details - UPDATE AFTER DEPLOYMENT
-const CONTRACT_ADDRESS = 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM';
+// Contract details - MAINNET DEPLOYED
+const CONTRACT_ADDRESS = 'SP312F1KXPTFJH6BHVFJTB5VYYGZQBYPYC7VT62SV';
 const CONTRACT_NAME = 'agent-arena';
-const API_BASE = 'https://api.testnet.hiro.so';
+const API_BASE = 'https://api.hiro.so';
 const MCP_SERVER = 'http://localhost:3001';
 
 interface Agent {
@@ -175,7 +175,7 @@ export default function Home() {
           stringUtf8CV(agentName),
           stringUtf8CV(agentType)
         ],
-        network: 'testnet' as any,
+        network: 'mainnet' as any,
         postConditionMode: PostConditionMode.Allow,
         onFinish: (data: any) => {
           setTxId(data.txId);
@@ -206,8 +206,8 @@ export default function Home() {
             <span className={`px-3 py-1 rounded-full text-sm ${wsConnected ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
               {wsConnected ? '● Live' : '○ Offline'}
             </span>
-            <span className="px-3 py-1 rounded-full text-sm bg-blue-500/20 text-blue-400">
-              Testnet
+            <span className="px-3 py-1 rounded-full text-sm bg-orange-500/20 text-orange-400">
+              Mainnet
             </span>
           </div>
         </div>
@@ -248,7 +248,7 @@ export default function Home() {
               <>
                 <div className="mb-4 p-3 bg-gray-900/50 rounded-lg flex justify-between items-center">
                   <span className="text-green-400 font-mono text-sm">
-                    {userData.profile?.stxAddress?.testnet?.slice(0, 8)}...
+                    {userData.profile?.stxAddress?.mainnet?.slice(0, 8)}...
                   </span>
                   <button onClick={disconnect} className="text-red-400 text-sm">Disconnect</button>
                 </div>
@@ -295,7 +295,7 @@ export default function Home() {
                   <div className="mt-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
                     <p className="text-green-400 text-sm">Transaction submitted!</p>
                     <a
-                      href={`https://explorer.hiro.so/txid/${txId}?chain=testnet`}
+                      href={`https://explorer.hiro.so/txid/${txId}?chain=mainnet`}
                       target="_blank"
                       className="text-blue-400 text-xs"
                     >

@@ -30,13 +30,11 @@ import {
 } from '@stacks/transactions';
 import { StacksMainnet, StacksTestnet } from '@stacks/network';
 
-// Contract details - UPDATE AFTER DEPLOYMENT
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM'; // Testnet deployer
+// Contract details - MAINNET DEPLOYED
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || 'SP312F1KXPTFJH6BHVFJTB5VYYGZQBYPYC7VT62SV';
 const CONTRACT_NAME = 'agent-arena';
-const NETWORK = process.env.NETWORK === 'mainnet' ? new StacksMainnet() : new StacksTestnet();
-const API_BASE = process.env.NETWORK === 'mainnet' 
-  ? 'https://api.hiro.so' 
-  : 'https://api.testnet.hiro.so';
+const NETWORK = new StacksMainnet(); // Default to mainnet
+const API_BASE = 'https://api.hiro.so';
 
 // WebSocket spectators
 let spectators: Set<WebSocket> = new Set();
