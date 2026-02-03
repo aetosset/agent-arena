@@ -6,14 +6,37 @@ import { useState, useEffect, useCallback } from 'react';
 const CONTRACT_ADDRESS = 'SP312F1KXPTFJH6BHVFJTB5VYYGZQBYPYC7VT62SV';
 const CONTRACT_NAME = 'agent-arena';
 const API_BASE = 'https://api.hiro.so';
-const MCP_SERVER = 'http://localhost:3001';
 
 interface Agent {
+  index: number;
   address: string;
   name: string;
   agentType: string;
   registeredAt: number;
   isActive: boolean;
+}
+
+// Helper to encode uint for Clarity
+function encodeUint(n: number): string {
+  const hex = n.toString(16).padStart(32, '0');
+  return '0x01' + hex; // 01 = uint type
+}
+
+// Helper to decode Clarity string-utf8
+function decodeStringUtf8(hex: string): string {
+  try {
+    // Skip type byte (0e) and length bytes, then decode
+    const clean = hex.replace('0x', '');
+    if (!clean.startsWith('0e')) return '';
+    // Find the actual string bytes after type and length
+    let idx = 2; // skip 0e
+    const len = parseInt(clean.slice(idx, idx + 8), 16);
+    idx += 8;
+    const strHex = clean.slice(idx, idx + len * 2);
+    return Buffer.from(strHex, 'hex').toString('utf8');
+  } catch {
+    return '';
+  }
 }
 
 export default function Home() {
@@ -26,107 +49,157 @@ export default function Home() {
   const [txId, setTxId] = useState<string | null>(null);
   const [agentName, setAgentName] = useState('');
   const [agentType, setAgentType] = useState('human');
-  const [wsConnected, setWsConnected] = useState(false);
+  const [fetchingAgents, setFetchingAgents] = useState(false);
+
+  // Parse uint from Clarity response
+  const parseUint = (hex: string): number => {
+    const clean = hex.replace('0x', '');
+    if (clean.startsWith('0701')) {
+      return parseInt(clean.slice(-8), 16);
+    }
+    return 0;
+  };
 
   // Fetch arena status from contract
   const fetchArenaStatus = useCallback(async () => {
     try {
-      // Get agent count
-      const countRes = await fetch(
-        `${API_BASE}/v2/contracts/call-read/${CONTRACT_ADDRESS}/${CONTRACT_NAME}/get-agent-count`,
-        {
+      const [countRes, openRes, roundRes] = await Promise.all([
+        fetch(`${API_BASE}/v2/contracts/call-read/${CONTRACT_ADDRESS}/${CONTRACT_NAME}/get-agent-count`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sender: CONTRACT_ADDRESS, arguments: [] }),
-        }
-      );
-      const countData = await countRes.json();
-      if (countData.okay && countData.result) {
-        const hex = countData.result.replace('0x', '');
-        if (hex.startsWith('0701')) {
-          setAgentCount(parseInt(hex.slice(-8), 16));
-        }
+        }),
+        fetch(`${API_BASE}/v2/contracts/call-read/${CONTRACT_ADDRESS}/${CONTRACT_NAME}/is-arena-open`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sender: CONTRACT_ADDRESS, arguments: [] }),
+        }),
+        fetch(`${API_BASE}/v2/contracts/call-read/${CONTRACT_ADDRESS}/${CONTRACT_NAME}/get-current-round`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sender: CONTRACT_ADDRESS, arguments: [] }),
+        })
+      ]);
+
+      const [countData, openData, roundData] = await Promise.all([
+        countRes.json(),
+        openRes.json(),
+        roundRes.json()
+      ]);
+
+      const count = countData.okay ? parseUint(countData.result) : 0;
+      setAgentCount(count);
+      
+      if (openData.okay) {
+        setIsOpen(openData.result.replace('0x', '').includes('03'));
+      }
+      
+      if (roundData.okay) {
+        setCurrentRound(parseUint(roundData.result));
       }
 
-      // Get arena open status
-      const openRes = await fetch(
-        `${API_BASE}/v2/contracts/call-read/${CONTRACT_ADDRESS}/${CONTRACT_NAME}/is-arena-open`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sender: CONTRACT_ADDRESS, arguments: [] }),
-        }
-      );
-      const openData = await openRes.json();
-      if (openData.okay && openData.result) {
-        const hex = openData.result.replace('0x', '');
-        setIsOpen(hex.includes('03')); // true in Clarity
-      }
-
-      // Get current round
-      const roundRes = await fetch(
-        `${API_BASE}/v2/contracts/call-read/${CONTRACT_ADDRESS}/${CONTRACT_NAME}/get-current-round`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sender: CONTRACT_ADDRESS, arguments: [] }),
-        }
-      );
-      const roundData = await roundRes.json();
-      if (roundData.okay && roundData.result) {
-        const hex = roundData.result.replace('0x', '');
-        if (hex.startsWith('0701')) {
-          setCurrentRound(parseInt(hex.slice(-8), 16));
-        }
-      }
+      return count;
     } catch (e) {
       console.error('Error fetching arena status:', e);
+      return 0;
     }
   }, []);
 
-  // WebSocket for real-time updates
-  useEffect(() => {
-    let ws: WebSocket;
+  // Fetch all registered agents
+  const fetchAgents = useCallback(async (count: number) => {
+    if (count === 0 || fetchingAgents) return;
     
-    const connect = () => {
-      ws = new WebSocket(`ws://localhost:3001/ws`);
-      
-      ws.onopen = () => {
-        setWsConnected(true);
-        console.log('WebSocket connected');
-      };
-      
-      ws.onmessage = (e) => {
-        const msg = JSON.parse(e.data);
-        if (msg.event === 'agent_registered') {
-          // Refresh data
-          fetchArenaStatus();
-          // Add to local list optimistically
-          setAgents(prev => [...prev, {
-            address: 'pending',
-            name: msg.data.name,
-            agentType: msg.data.agentType,
-            registeredAt: Date.now(),
+    setFetchingAgents(true);
+    const fetchedAgents: Agent[] = [];
+
+    try {
+      for (let i = 0; i < count; i++) {
+        // Get agent address by index
+        const indexRes = await fetch(
+          `${API_BASE}/v2/contracts/call-read/${CONTRACT_ADDRESS}/${CONTRACT_NAME}/get-agent-by-index`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              sender: CONTRACT_ADDRESS, 
+              arguments: [encodeUint(i)] 
+            }),
+          }
+        );
+        const indexData = await indexRes.json();
+        
+        if (indexData.okay && indexData.result) {
+          // Parse principal from response - it's wrapped in (ok (some principal))
+          // For now, just show the index and fetch from contract events
+          fetchedAgents.push({
+            index: i,
+            address: `Agent #${i + 1}`,
+            name: `Registered Agent`,
+            agentType: 'unknown',
+            registeredAt: 0,
             isActive: true
-          }]);
+          });
         }
-      };
+      }
+
+      // Try to get more details from contract events/transactions
+      const txRes = await fetch(
+        `${API_BASE}/extended/v1/address/${CONTRACT_ADDRESS}.${CONTRACT_NAME}/transactions?limit=50`
+      );
+      const txData = await txRes.json();
       
-      ws.onclose = () => {
-        setWsConnected(false);
-        setTimeout(connect, 3000);
-      };
-    };
-    
-    connect();
-    return () => ws?.close();
-  }, [fetchArenaStatus]);
+      if (txData.results) {
+        const registerTxs = txData.results.filter(
+          (tx: any) => tx.tx_type === 'contract_call' && 
+                       tx.contract_call?.function_name === 'register' &&
+                       tx.tx_status === 'success'
+        );
+
+        // Update agents with real data from transactions
+        registerTxs.forEach((tx: any, idx: number) => {
+          if (idx < fetchedAgents.length) {
+            const args = tx.contract_call?.function_args || [];
+            const nameArg = args.find((a: any) => a.name === 'name');
+            const typeArg = args.find((a: any) => a.name === 'agent-type');
+            
+            fetchedAgents[fetchedAgents.length - 1 - idx] = {
+              index: fetchedAgents.length - 1 - idx,
+              address: tx.sender_address,
+              name: nameArg?.repr?.replace(/^u"/, '').replace(/"$/, '') || 'Unknown',
+              agentType: typeArg?.repr?.replace(/^u"/, '').replace(/"$/, '') || 'unknown',
+              registeredAt: new Date(tx.burn_block_time_iso).getTime(),
+              isActive: true
+            };
+          }
+        });
+      }
+
+      setAgents(fetchedAgents);
+    } catch (e) {
+      console.error('Error fetching agents:', e);
+    } finally {
+      setFetchingAgents(false);
+    }
+  }, [fetchingAgents]);
 
   useEffect(() => {
-    fetchArenaStatus();
-    const interval = setInterval(fetchArenaStatus, 30000);
+    const init = async () => {
+      const count = await fetchArenaStatus();
+      if (count > 0) {
+        await fetchAgents(count);
+      }
+    };
+    init();
+    
+    const interval = setInterval(async () => {
+      const count = await fetchArenaStatus();
+      if (count > agents.length) {
+        await fetchAgents(count);
+      }
+    }, 15000);
+    
     return () => clearInterval(interval);
-  }, [fetchArenaStatus]);
+  }, [fetchArenaStatus, fetchAgents, agents.length]);
 
   const connectWallet = async () => {
     try {
@@ -180,7 +253,11 @@ export default function Home() {
         onFinish: (data: any) => {
           setTxId(data.txId);
           setLoading(false);
-          setTimeout(fetchArenaStatus, 5000);
+          // Refresh after a delay
+          setTimeout(async () => {
+            const count = await fetchArenaStatus();
+            await fetchAgents(count);
+          }, 10000);
         },
         onCancel: () => setLoading(false),
       });
@@ -203,9 +280,6 @@ export default function Home() {
             {CONTRACT_ADDRESS}.{CONTRACT_NAME}
           </p>
           <div className="mt-4 flex justify-center gap-2">
-            <span className={`px-3 py-1 rounded-full text-sm ${wsConnected ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-              {wsConnected ? '● Live' : '○ Offline'}
-            </span>
             <span className="px-3 py-1 rounded-full text-sm bg-orange-500/20 text-orange-400">
               Mainnet
             </span>
@@ -312,7 +386,12 @@ export default function Home() {
         <div className="max-w-3xl mx-auto">
           <h2 className="text-2xl font-bold mb-6 text-center">Registered Agents</h2>
           
-          {agents.length === 0 ? (
+          {fetchingAgents ? (
+            <div className="text-center text-gray-400 py-12">
+              <div className="animate-spin text-4xl mb-4">⏳</div>
+              <p>Loading agents...</p>
+            </div>
+          ) : agents.length === 0 ? (
             <div className="text-center text-gray-500 py-12 bg-gray-800/30 rounded-xl border border-gray-700">
               <div className="text-4xl mb-4">🤖</div>
               <p>No agents registered yet</p>
@@ -329,10 +408,13 @@ export default function Home() {
                     <div>
                       <div className="font-bold">{agent.name}</div>
                       <div className="text-gray-400 text-sm">{agent.agentType}</div>
+                      <div className="text-gray-600 text-xs font-mono">
+                        {agent.address.slice(0, 20)}...
+                      </div>
                     </div>
                   </div>
                   <div className={`px-3 py-1 rounded-full text-sm ${agent.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                    {agent.isActive ? 'Active' : 'Inactive'}
+                    #{agent.index + 1}
                   </div>
                 </div>
               ))}
@@ -340,27 +422,16 @@ export default function Home() {
           )}
         </div>
 
-        {/* MCP Connection Info */}
-        <div className="max-w-3xl mx-auto mt-12">
-          <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700">
-            <h3 className="text-lg font-bold mb-4 text-orange-400">🔌 Connect Your AI Agent</h3>
-            <p className="text-gray-400 text-sm mb-4">
-              AI agents can register programmatically via MCP (Model Context Protocol):
-            </p>
-            <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm">
-              <div className="text-gray-500"># MCP Endpoint</div>
-              <div className="text-green-400">{MCP_SERVER}/mcp</div>
-              <div className="text-gray-500 mt-2"># Available Tools</div>
-              <div className="text-blue-400">get_arena_status</div>
-              <div className="text-blue-400">register_agent</div>
-              <div className="text-blue-400">check_registration</div>
-            </div>
-          </div>
-        </div>
-
         {/* Footer */}
         <div className="text-center mt-16 text-gray-500 text-sm">
           <p>Built by Aetos 🏛️ for The House of Set</p>
+          <a 
+            href={`https://explorer.hiro.so/txid/${CONTRACT_ADDRESS}.${CONTRACT_NAME}?chain=mainnet`}
+            target="_blank"
+            className="text-blue-400"
+          >
+            View Contract on Explorer
+          </a>
         </div>
       </div>
     </div>
