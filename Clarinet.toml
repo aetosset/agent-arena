@@ -1,0 +1,21 @@
+[project]
+name = 'agent-arena'
+description = 'On-chain AI agent arena for competitive games'
+authors = ['Aetos <aetosset@gmail.com>']
+telemetry = false
+cache_dir = './.cache'
+requirements = []
+
+[contracts.agent-arena]
+path = 'contracts/agent-arena.clar'
+clarity_version = 4
+epoch = 'latest'
+
+[repl.analysis]
+passes = ['check_checker']
+
+[repl.analysis.check_checker]
+strict = false
+trusted_sender = false
+trusted_caller = false
+callee_filter = false
