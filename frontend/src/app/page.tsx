@@ -1,5 +1,5 @@
 import MatchView from '@/components/MatchView';
 
 export default function HomePage() {
-  return <MatchView phase="deliberation" />;
+  return <MatchView initialPhase="deliberation" />;
 }

@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get bot names for display
-    const botIds = [...new Set((matches || []).flatMap(m => m.bot_ids))];
+    const botIds = Array.from(new Set((matches || []).flatMap(m => m.bot_ids)));
     
     let botMap: Record<string, { name: string; avatar: string }> = {};
     if (botIds.length > 0) {
