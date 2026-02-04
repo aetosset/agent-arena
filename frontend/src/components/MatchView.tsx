@@ -102,34 +102,85 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
     }
   }, [chat]);
 
-  // Demo mode auto-cycling
+  // Demo mode auto-cycling with proper round advancement
   useEffect(() => {
     if (!demoMode) return;
     
+    const DEMO_ITEMS = [
+      { title: 'Cat Butt Tissue Dispenser', category: 'NOVELTY', price: 4500 },
+      { title: 'Puking Cat Gravy Boat', category: 'KITCHEN', price: 4000 },
+      { title: 'Self-Defense Nightstand', category: 'FURNITURE', price: 20000 },
+      { title: 'Hot Tub Squirrel Feeder', category: 'OUTDOOR', price: 900 },
+    ];
+    
     const phases: MatchPhase[] = ['deliberation', 'bid-reveal', 'price-reveal', 'elimination'];
-    let idx = 0;
+    let phaseIdx = 0;
+    let currentRound = 1;
+    let currentBots = [...DEMO_BOTS];
+    let allEliminated: string[] = [];
     
     const interval = setInterval(() => {
-      idx = (idx + 1) % phases.length;
-      setPhase(phases[idx]);
+      phaseIdx++;
       
-      if (phases[idx] === 'price-reveal') {
-        setActualPrice(4500);
-        setBids([
-          { botId: '1', botName: 'SNIPE-BOT', price: 4200 },
-          { botId: '2', botName: 'GROK-V3', price: 3800 },
-          { botId: '3', botName: 'ARCH-V', price: 5100 },
-          { botId: '4', botName: 'HYPE-AI', price: 7200 },
-        ]);
+      // After elimination, advance to next round
+      if (phaseIdx >= phases.length) {
+        phaseIdx = 0;
+        currentRound++;
+        
+        if (currentRound > 4) {
+          // Match complete - show winner
+          setPhase('finished');
+          setWinner(currentBots[0]);
+          clearInterval(interval);
+          return;
+        }
+        
+        // Update item for new round
+        setItem(DEMO_ITEMS[currentRound - 1]);
+        setRound(currentRound);
+        setBids([]);
       }
       
-      if (phases[idx] === 'elimination') {
-        setEliminated([
-          { botId: '4', botName: 'HYPE-AI', distance: 2700 },
-          { botId: '8', botName: 'ZEN-BOT', distance: 2100 },
-        ]);
+      const phase = phases[phaseIdx];
+      setPhase(phase);
+      
+      if (phase === 'deliberation') {
+        setTimer(30);
       }
-    }, 5000);
+      
+      if (phase === 'bid-reveal') {
+        // Generate random bids for surviving bots
+        const newBids = currentBots.map(bot => ({
+          botId: bot.id,
+          botName: bot.name,
+          price: Math.floor(Math.random() * 5000) + 1000
+        }));
+        setBids(newBids);
+      }
+      
+      if (phase === 'price-reveal') {
+        setActualPrice(DEMO_ITEMS[currentRound - 1].price);
+      }
+      
+      if (phase === 'elimination') {
+        // Eliminate 2 bots
+        const toEliminate = currentBots.slice(-2);
+        currentBots = currentBots.slice(0, -2);
+        
+        const newEliminated = toEliminate.map(bot => ({
+          botId: bot.id,
+          botName: bot.name,
+          distance: Math.floor(Math.random() * 3000)
+        }));
+        
+        allEliminated.push(...toEliminate.map(b => b.id));
+        setEliminated(newEliminated);
+        setBots(prevBots => prevBots.map(b => ({
+          ...b,
+          eliminated: allEliminated.includes(b.id)
+        })));
+      }
+    }, 4000);
     
     return () => clearInterval(interval);
   }, [demoMode]);
