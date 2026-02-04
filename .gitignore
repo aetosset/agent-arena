@@ -30,3 +30,4 @@ npm-debug.log*
 # Private keys (NEVER commit these)
 *.key
 *private*
+server/data/
