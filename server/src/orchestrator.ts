@@ -52,6 +52,8 @@ class MatchOrchestrator {
       console.error('Match already in progress!');
       return;
     }
+    
+    try {
 
     // Create match in DB
     const match = createMatch(botIds);
@@ -106,12 +108,17 @@ class MatchOrchestrator {
     // Start first round after countdown
     await this.delay(ROUND_COUNTDOWN);
     await this.runRound();
+    } catch (error) {
+      console.error('❌ Match error:', error);
+      this.activeMatch = null;
+    }
   }
 
   // Run a single round
   private async runRound(): Promise<void> {
     if (!this.activeMatch) return;
 
+    try {
     const am = this.activeMatch;
     am.currentRound++;
     am.bids = new Map();
@@ -168,6 +175,9 @@ class MatchOrchestrator {
     } else {
       // All rounds complete - whoever is left wins
       await this.endMatch();
+    }
+    } catch (error) {
+      console.error('❌ Round error:', error);
     }
   }
 
