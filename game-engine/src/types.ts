@@ -5,10 +5,12 @@
 export interface GameItem {
   id: string;
   title: string;
-  price: number;        // Actual price in cents (avoid floating point)
-  proofUrl: string;     // URL proving the price
-  imageUrl?: string;    // Optional image
-  category?: string;    // e.g., "electronics", "food", "luxury"
+  price: number;           // Actual price in cents (avoid floating point)
+  proofUrl: string;        // URL proving the price
+  imageUrls?: string[];    // Multiple product images
+  category?: string;       // e.g., "electronics", "food", "luxury"
+  priceFetchedAt?: number; // Timestamp when price was verified (ms)
+  source?: string;         // Where price came from (e.g., "amazon", "walmart")
 }
 
 export interface Agent {
