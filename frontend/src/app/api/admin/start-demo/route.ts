@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const SERVER_URL = process.env.GAME_SERVER_URL || 'http://localhost:3001';
+const SERVER_URL = process.env.GAME_SERVER_URL || 'https://emily-bomb-signing-grand.trycloudflare.com';
 
 // POST /api/admin/start-demo - Proxy to game server
 export async function POST() {
