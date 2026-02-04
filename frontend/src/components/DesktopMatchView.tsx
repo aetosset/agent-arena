@@ -45,8 +45,8 @@ interface DesktopMatchViewProps {
 
 const VIEWPORT_HEIGHT = 450;
 const BOT_SIZE = 64;
-const MOVE_INTERVAL = 150; // ms between position updates
-const GRID_SNAP = 8; // pixel grid for blocky movement
+const MOVE_INTERVAL = 80; // ms between position updates (faster)
+const GRID_SNAP = 12; // pixel grid for blocky movement (larger steps)
 
 export default function DesktopMatchView({
   phase,
@@ -126,11 +126,14 @@ export default function DesktopMatchView({
             newY = pos.y + (pos.targetY > pos.y ? GRID_SNAP : -GRID_SNAP);
           }
 
-          // Pick new target if reached current one
+          // Pick new target if reached current one OR randomly change direction (10% chance)
           let newTargetX = pos.targetX;
           let newTargetY = pos.targetY;
           
-          if (Math.abs(newX - pos.targetX) <= GRID_SNAP && Math.abs(newY - pos.targetY) <= GRID_SNAP) {
+          const reachedTarget = Math.abs(newX - pos.targetX) <= GRID_SNAP && Math.abs(newY - pos.targetY) <= GRID_SNAP;
+          const randomChange = Math.random() < 0.08; // 8% chance to change direction
+          
+          if (reachedTarget || randomChange) {
             // Random new target within viewport bounds
             const margin = BOT_SIZE;
             newTargetX = snapToGrid(margin + Math.random() * (viewportWidth - margin * 2));
@@ -264,8 +267,16 @@ export default function DesktopMatchView({
           {/* Item Display - Fixed Top Row */}
           <div className="mb-4 p-4 bg-[#111] rounded-lg border border-[#00ff00]/20">
             <div className="flex items-center gap-6">
-              <div className="w-24 h-24 bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg flex items-center justify-center border border-gray-700">
-                <span className="text-5xl">📦</span>
+              <div className="w-24 h-24 bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg flex items-center justify-center border border-gray-700 overflow-hidden">
+                {item?.imageUrls?.[0] ? (
+                  <img 
+                    src={item.imageUrls[0]} 
+                    alt={item.title} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-5xl">📦</span>
+                )}
               </div>
               <div className="flex-1">
                 <span className="text-[#00ff00] text-xs font-bold tracking-wider">ITEM #{round}</span>

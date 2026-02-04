@@ -307,8 +307,16 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
                 <span className="absolute top-3 left-3 z-10 bg-[#00ff00] text-black text-xs font-bold px-2 py-1 rounded">
                   {item.category || 'ITEM'}
                 </span>
-                <div className="aspect-[4/3] bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
-                  <span className="text-6xl">📦</span>
+                <div className="aspect-[4/3] bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center overflow-hidden">
+                  {item?.imageUrls?.[0] ? (
+                    <img 
+                      src={item.imageUrls[0]} 
+                      alt={item.title} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-6xl">📦</span>
+                  )}
                 </div>
               </div>
               <div className="p-4">
