@@ -1,12 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
-  eslint: {
-    ignoreDuringBuilds: true,
+  reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: '**' },
+    ],
   },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
