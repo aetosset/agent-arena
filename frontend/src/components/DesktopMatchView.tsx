@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Wifi, WifiOff, Trophy, Send } from 'lucide-react';
 import Link from 'next/link';
 
@@ -87,7 +87,12 @@ export default function DesktopMatchView({
   const [speechBubbles, setSpeechBubbles] = useState<SpeechBubble[]>([]);
   const [chatInput, setChatInput] = useState('');
 
-  const eliminatedIds = eliminated.map((e: any) => e.botId);
+  // Get eliminated bot IDs from BOTH the eliminated prop AND bot.eliminated property
+  // (bot.eliminated is set cumulatively, eliminated prop is just current round)
+  const eliminatedIds = [
+    ...eliminated.map((e: any) => e.botId),
+    ...bots.filter((b: any) => b.eliminated).map((b: any) => b.id)
+  ].filter((id, idx, arr) => arr.indexOf(id) === idx); // dedupe
 
   // Helper to check if a cell is occupied
   const isCellOccupied = (col: number, row: number, excludeBotId?: string): boolean => {
@@ -149,13 +154,20 @@ export default function DesktopMatchView({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Store eliminated IDs in a ref to avoid effect restarts
+  const eliminatedIdsRef = useRef<string[]>([]);
+  eliminatedIdsRef.current = eliminatedIds;
+
   // Bot wandering movement during deliberation - grid-based, cardinal directions only
   useEffect(() => {
     if (phase !== 'deliberation') return;
+    
+    console.log('[Movement] Starting movement interval, phase:', phase);
 
     const interval = setInterval(() => {
       setBotGridPositions(prev => {
         const newPositions = new Map(prev);
+        const currentEliminated = eliminatedIdsRef.current;
         
         // Build current occupied cells set
         const currentOccupied = new Set<string>();
@@ -163,11 +175,12 @@ export default function DesktopMatchView({
           currentOccupied.add(`${pos.col},${pos.row}`);
         });
         
-        bots.forEach(bot => {
-          if (eliminatedIds.includes(bot.id)) return;
-          
-          // 40% chance to move this tick (creates varied movement)
-          if (Math.random() > 0.4) return;
+        // Get active (non-eliminated) bots
+        const activeBots = bots.filter(bot => !currentEliminated.includes(bot.id));
+        
+        activeBots.forEach(bot => {
+          // 50% chance to move this tick (creates varied movement)
+          if (Math.random() > 0.5) return;
           
           const pos = newPositions.get(bot.id);
           if (!pos) return;
@@ -209,8 +222,11 @@ export default function DesktopMatchView({
       });
     }, MOVE_INTERVAL);
 
-    return () => clearInterval(interval);
-  }, [phase, bots, eliminatedIds]);
+    return () => {
+      console.log('[Movement] Clearing movement interval');
+      clearInterval(interval);
+    };
+  }, [phase, bots]); // Removed eliminatedIds - using ref instead
 
   // Handle chat messages -> speech bubbles
   useEffect(() => {

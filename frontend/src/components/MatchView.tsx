@@ -262,7 +262,11 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
   };
 
   const progressPercent = Math.max(0, (timer / 15) * 100); // 15 seconds for demo
-  const eliminatedIds = eliminated.map((e: any) => e.botId);
+  // Get eliminated bot IDs from BOTH the eliminated prop AND bot.eliminated property
+  const eliminatedIds = [
+    ...eliminated.map((e: any) => e.botId),
+    ...bots.filter((b: any) => b.eliminated).map((b: any) => b.id)
+  ].filter((id, idx, arr) => arr.indexOf(id) === idx); // dedupe
   const survivingBots = bots.filter((b: any) => !eliminatedIds.includes(b.id));
 
   // Winner screen (same for both mobile and desktop)
