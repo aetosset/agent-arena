@@ -121,19 +121,31 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
     if (!demoMode) return;
     
     const DEMO_ITEMS = [
-      { title: 'Cat Butt Tissue Dispenser', category: 'NOVELTY', price: 4500 },
-      { title: 'Puking Cat Gravy Boat', category: 'KITCHEN', price: 4000 },
-      { title: 'Self-Defense Nightstand', category: 'FURNITURE', price: 20000 },
-      { title: 'Hot Tub Squirrel Feeder', category: 'OUTDOOR', price: 900 },
+      { title: 'Cat Butt Tissue Dispenser', category: 'NOVELTY', price: 4500, imageUrls: ['https://i.imgur.com/placeholder1.jpg'] },
+      { title: 'Puking Cat Gravy Boat', category: 'KITCHEN', price: 4000, imageUrls: ['https://i.imgur.com/placeholder2.jpg'] },
+      { title: 'Self-Defense Nightstand', category: 'FURNITURE', price: 20000, imageUrls: ['https://i.imgur.com/placeholder3.jpg'] },
+      { title: 'Hot Tub Squirrel Feeder', category: 'OUTDOOR', price: 900, imageUrls: ['https://i.imgur.com/placeholder4.jpg'] },
     ];
     
+    // Phase durations in ms
+    const PHASE_DURATIONS: Record<MatchPhase, number> = {
+      'starting': 2000,
+      'deliberation': 15000, // 15 seconds for demo (shorter than real 30s)
+      'bid-reveal': 3000,
+      'price-reveal': 3000,
+      'elimination': 3000,
+      'round-end': 2000,
+      'finished': 0
+    };
+    
     const phases: MatchPhase[] = ['deliberation', 'bid-reveal', 'price-reveal', 'elimination'];
-    let phaseIdx = 0;
+    let phaseIdx = -1; // Start at -1 so first advance goes to 0 (deliberation)
     let currentRound = 1;
     let currentBots = [...DEMO_BOTS];
     let allEliminated: string[] = [];
+    let timeoutId: NodeJS.Timeout;
     
-    const interval = setInterval(() => {
+    const advancePhase = () => {
       phaseIdx++;
       
       // After elimination, advance to next round
@@ -145,7 +157,6 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
           // Match complete - show winner
           setPhase('finished');
           setWinner(currentBots[0]);
-          clearInterval(interval);
           return;
         }
         
@@ -153,16 +164,20 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
         setItem(DEMO_ITEMS[currentRound - 1]);
         setRound(currentRound);
         setBids([]);
+        setEliminated([]);
       }
       
-      const phase = phases[phaseIdx];
-      setPhase(phase);
+      const currentPhase = phases[phaseIdx];
+      setPhase(currentPhase);
       
-      if (phase === 'deliberation') {
-        setTimer(30);
+      if (currentPhase === 'deliberation') {
+        setTimer(15); // Match the demo duration
+        // Generate some demo chat
+        const randomBot = currentBots[Math.floor(Math.random() * currentBots.length)];
+        setChat([{ botId: randomBot.id, botName: randomBot.name, message: "Analyzing this item..." }]);
       }
       
-      if (phase === 'bid-reveal') {
+      if (currentPhase === 'bid-reveal') {
         // Generate random bids for surviving bots
         const newBids = currentBots.map(bot => ({
           botId: bot.id,
@@ -172,12 +187,12 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
         setBids(newBids);
       }
       
-      if (phase === 'price-reveal') {
+      if (currentPhase === 'price-reveal') {
         setActualPrice(DEMO_ITEMS[currentRound - 1].price);
       }
       
-      if (phase === 'elimination') {
-        // Eliminate 2 bots
+      if (currentPhase === 'elimination') {
+        // Eliminate 2 bots (the ones furthest from price)
         const toEliminate = currentBots.slice(-2);
         currentBots = currentBots.slice(0, -2);
         
@@ -194,10 +209,50 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
           eliminated: allEliminated.includes(b.id)
         })));
       }
-    }, 4000);
+      
+      // Schedule next phase
+      const duration = PHASE_DURATIONS[currentPhase];
+      if (duration > 0) {
+        timeoutId = setTimeout(advancePhase, duration);
+      }
+    };
     
-    return () => clearInterval(interval);
+    // Start immediately with first phase
+    advancePhase();
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [demoMode]);
+
+  // Demo mode: Generate chat messages during deliberation
+  useEffect(() => {
+    if (!demoMode || phase !== 'deliberation') return;
+    
+    const DEMO_MESSAGES = [
+      "Analyzing price data...",
+      "This looks interesting.",
+      "Running calculations...",
+      "I've seen better items.",
+      "Market data suggests high value.",
+      "My neural nets are tingling.",
+      "Computing optimal bid...",
+      "This one's mine.",
+      "Easy money.",
+      "Don't even try to outbid me.",
+    ];
+    
+    const survivingBotsList = bots.filter(b => !b.eliminated);
+    
+    const chatInterval = setInterval(() => {
+      if (survivingBotsList.length === 0) return;
+      const randomBot = survivingBotsList[Math.floor(Math.random() * survivingBotsList.length)];
+      const randomMessage = DEMO_MESSAGES[Math.floor(Math.random() * DEMO_MESSAGES.length)];
+      setChat(prev => [...prev, { botId: randomBot.id, botName: randomBot.name, message: randomMessage }]);
+    }, 2500); // New chat message every 2.5 seconds
+    
+    return () => clearInterval(chatInterval);
+  }, [demoMode, phase, bots]);
 
   const formatTime = (t: number) => {
     const mins = Math.floor(t / 60);
@@ -206,7 +261,7 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
   };
 
-  const progressPercent = Math.max(0, (timer / 30) * 100);
+  const progressPercent = Math.max(0, (timer / 15) * 100); // 15 seconds for demo
   const eliminatedIds = eliminated.map((e: any) => e.botId);
   const survivingBots = bots.filter((b: any) => !eliminatedIds.includes(b.id));
 
