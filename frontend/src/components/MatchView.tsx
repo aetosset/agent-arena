@@ -19,6 +19,7 @@ interface MatchViewProps {
   matchState?: any;
   connected?: boolean;
   demoMode?: boolean;
+  onExitDemo?: () => void;
 }
 
 // Demo data for when running in demo mode
@@ -39,7 +40,7 @@ const DEMO_ITEM = {
   id: 'demo-item',
 };
 
-export default function MatchView({ matchState, connected = false, demoMode = false }: MatchViewProps) {
+export default function MatchView({ matchState, connected = false, demoMode = false, onExitDemo }: MatchViewProps) {
   // Use real data if available, otherwise demo
   const [phase, setPhase] = useState<MatchPhase>(matchState?.phase || 'deliberation');
   const [round, setRound] = useState(matchState?.round || 1);

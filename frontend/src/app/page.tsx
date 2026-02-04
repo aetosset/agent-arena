@@ -15,7 +15,7 @@ export default function HomePage() {
 
   // For demo purposes, allow toggling demo mode
   if (showDemo) {
-    return <MatchView demoMode={true} />;
+    return <MatchView demoMode={true} onExitDemo={() => setShowDemo(false)} />;
   }
 
   if (hasActiveMatch) {
@@ -27,10 +27,15 @@ export default function HomePage() {
       queueState={queueState} 
       connected={connected}
       onStartDemo={() => {
-        // Call API to start demo match
-        fetch('/api/admin/start-demo', { method: 'POST' })
-          .then(() => console.log('Demo started'))
-          .catch(console.error);
+        // If connected to server, start real demo
+        if (connected) {
+          fetch('/api/admin/start-demo', { method: 'POST' })
+            .then(() => console.log('Demo started'))
+            .catch(console.error);
+        } else {
+          // Otherwise show client-side demo
+          setShowDemo(true);
+        }
       }}
     />
   );
