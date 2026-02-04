@@ -1,8 +1,8 @@
 'use client';
 
 import { useWebSocket } from '@/lib/websocket';
-import { useState, useEffect } from 'react';
-import MatchView from '@/components/MatchView';
+import { useState } from 'react';
+import MatchViewV2 from '@/components/MatchViewV2';
 import Lobby from '@/components/Lobby';
 
 export default function HomePage() {
@@ -10,16 +10,17 @@ export default function HomePage() {
   const [showDemo, setShowDemo] = useState(false);
 
   // If there's an active match, show match view
-  // Otherwise show lobby
   const hasActiveMatch = matchState && matchState.phase && matchState.phase !== 'finished';
 
-  // For demo purposes, allow toggling demo mode
+  // Demo mode - use new V2 component with clean game engine
   if (showDemo) {
-    return <MatchView demoMode={true} onExitDemo={() => setShowDemo(false)} />;
+    return <MatchViewV2 demoMode={true} connected={false} />;
   }
 
+  // Live match from server
   if (hasActiveMatch) {
-    return <MatchView matchState={matchState} connected={connected} />;
+    // TODO: Convert server matchState to GameState format
+    return <MatchViewV2 demoMode={true} connected={connected} />;
   }
 
   return (
