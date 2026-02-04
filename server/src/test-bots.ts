@@ -94,10 +94,13 @@ class TestBotManager {
       console.log(`🤖 ${bot.name} connected`);
       bot.ws = ws;
       
-      // Auto-join queue after connecting
+      // Auto-join queue after connecting (longer delay to ensure registration)
       setTimeout(() => {
-        queueManager.joinQueue(bot.botId);
-      }, 500);
+        const result = queueManager.joinQueue(bot.botId);
+        if (!result.success) {
+          console.error(`🤖 ${bot.name} failed to join queue: ${result.error}`);
+        }
+      }, 1000);
     });
     
     ws.on('message', (data) => {
