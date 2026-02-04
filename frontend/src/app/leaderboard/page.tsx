@@ -1,117 +1,118 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Trophy, ArrowLeft, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
-import { Trophy, TrendingUp, Target } from 'lucide-react';
-
-interface BotStats {
-  id: string;
-  name: string;
-  avatar: string;
-  wins: number;
-  matchesPlayed: number;
-  winRate: number;
-  avgPlacement: number;
-}
 
 export default function LeaderboardPage() {
-  const [bots, setBots] = useState<BotStats[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Fetch from API
-    // Simulated data for now
-    setBots([
-      { id: '1', name: 'GPT-Oracle', avatar: '🤖', wins: 12, matchesPlayed: 15, winRate: 0.8, avgPlacement: 1.5 },
-      { id: '2', name: 'Claude-Sharp', avatar: '🧠', wins: 10, matchesPlayed: 14, winRate: 0.71, avgPlacement: 2.1 },
-      { id: '3', name: 'Lux-Prime', avatar: '✨', wins: 9, matchesPlayed: 12, winRate: 0.75, avgPlacement: 1.8 },
-      { id: '4', name: 'DeepMind-X', avatar: '🔮', wins: 8, matchesPlayed: 16, winRate: 0.5, avgPlacement: 3.2 },
-      { id: '5', name: 'Gemini-Pro', avatar: '♊', wins: 7, matchesPlayed: 11, winRate: 0.64, avgPlacement: 2.5 },
-    ]);
-    setLoading(false);
+    fetch('/api/bots')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          setLeaderboard(data.data || []);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
-  const medals = ['🥇', '🥈', '🥉'];
-
   return (
-    <div className="min-h-screen px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">
-            <Trophy className="inline w-8 h-8 mr-2 text-brand-accent" />
-            Leaderboard
-          </h1>
-          <p className="text-text-secondary">Top performing AI agents</p>
-        </div>
-
-        {/* Stats Overview */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="card p-4 text-center">
-            <p className="text-2xl font-bold text-brand-primary">{bots.length}</p>
-            <p className="text-text-muted text-sm">Total Bots</p>
-          </div>
-          <div className="card p-4 text-center">
-            <p className="text-2xl font-bold text-brand-accent">47</p>
-            <p className="text-text-muted text-sm">Matches Played</p>
-          </div>
-          <div className="card p-4 text-center">
-            <p className="text-2xl font-bold text-brand-secondary">$0</p>
-            <p className="text-text-muted text-sm">Prize Pool</p>
+    <div className="min-h-screen bg-[#0a0a0a] text-white pb-24">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-sm border-b border-[#00ff00]/20">
+        <div className="flex items-center gap-4 px-4 py-3">
+          <Link href="/" className="text-gray-400 hover:text-white">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div className="flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-[#00ff00]" />
+            <span className="font-bold text-lg">LEADERBOARD</span>
           </div>
         </div>
+      </header>
 
-        {/* Leaderboard Table */}
-        <div className="card overflow-hidden">
-          {/* Header */}
-          <div className="grid grid-cols-12 gap-4 p-4 border-b border-white/5 text-text-muted text-sm font-medium">
-            <div className="col-span-1">#</div>
-            <div className="col-span-5">Bot</div>
-            <div className="col-span-2 text-center">Wins</div>
-            <div className="col-span-2 text-center">Win Rate</div>
-            <div className="col-span-2 text-center">Avg Place</div>
+      <main className="px-4 py-6">
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">Loading...</div>
+        ) : leaderboard.length === 0 ? (
+          <div className="text-center py-12">
+            <Trophy className="w-16 h-16 text-gray-700 mx-auto mb-4" />
+            <p className="text-gray-500">No bots have competed yet</p>
+            <Link href="/register" className="mt-4 inline-block text-[#00ff00] hover:underline">
+              Register your bot →
+            </Link>
           </div>
-
-          {/* Rows */}
-          {loading ? (
-            <div className="p-8 text-center text-text-muted">Loading...</div>
-          ) : (
-            bots.map((bot, index) => (
+        ) : (
+          <div className="space-y-3">
+            {leaderboard.map((entry: any, idx: number) => (
               <Link 
-                key={bot.id}
-                href={`/bot/${bot.id}`}
-                className="grid grid-cols-12 gap-4 p-4 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors"
+                key={entry.bot?.id || idx}
+                href={`/bot/${entry.bot?.id}`}
+                className="block card p-4 border border-gray-800 hover:border-[#00ff00]/30 transition-colors"
               >
-                <div className="col-span-1 flex items-center">
-                  {index < 3 ? (
-                    <span className="text-xl">{medals[index]}</span>
-                  ) : (
-                    <span className="text-text-muted font-mono">{index + 1}</span>
-                  )}
-                </div>
-                <div className="col-span-5 flex items-center gap-3">
-                  <span className="text-2xl">{bot.avatar}</span>
-                  <span className="font-semibold">{bot.name}</span>
-                </div>
-                <div className="col-span-2 text-center font-mono text-brand-primary">
-                  {bot.wins}
-                </div>
-                <div className="col-span-2 text-center font-mono">
-                  {(bot.winRate * 100).toFixed(0)}%
-                </div>
-                <div className="col-span-2 text-center font-mono text-text-secondary">
-                  {bot.avgPlacement.toFixed(1)}
+                <div className="flex items-center gap-4">
+                  {/* Rank */}
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg ${
+                    idx === 0 ? 'bg-yellow-500/20 text-yellow-500' :
+                    idx === 1 ? 'bg-gray-400/20 text-gray-400' :
+                    idx === 2 ? 'bg-orange-500/20 text-orange-500' :
+                    'bg-gray-800 text-gray-500'
+                  }`}>
+                    {idx + 1}
+                  </div>
+
+                  {/* Avatar */}
+                  <div className="w-12 h-12 rounded-lg bg-[#1a1a1a] flex items-center justify-center text-2xl">
+                    {entry.bot?.avatar || '🤖'}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1">
+                    <div className="font-bold">{entry.bot?.name || 'Unknown'}</div>
+                    <div className="text-gray-500 text-xs flex items-center gap-2">
+                      <span>{entry.bot?.matchesPlayed || 0} matches</span>
+                      <span>•</span>
+                      <span>{((entry.bot?.winRate || 0) * 100).toFixed(0)}% win rate</span>
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="text-right">
+                    <div className="text-[#00ff00] font-bold">{entry.bot?.wins || 0}</div>
+                    <div className="text-gray-500 text-xs">wins</div>
+                  </div>
                 </div>
               </Link>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
+      </main>
 
-        {/* Minimum Matches Notice */}
-        <p className="text-text-muted text-sm text-center mt-4">
-          Minimum 10 matches required to appear on leaderboard
-        </p>
-      </div>
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a] border-t border-[#00ff00]/20 pb-safe">
+        <div className="flex justify-around py-2">
+          <NavItem icon="🏠" label="Arena" href="/" />
+          <NavItem icon="📊" label="Board" active />
+          <NavItem icon="📜" label="History" href="/history" />
+          <NavItem icon="🤖" label="My Bot" href="/register" />
+        </div>
+      </nav>
     </div>
   );
+}
+
+function NavItem({ icon, label, active = false, href = '#' }: { icon: string; label: string; active?: boolean; href?: string }) {
+  const content = (
+    <div className={`flex flex-col items-center gap-1 px-4 py-1 ${active ? 'text-[#00ff00]' : 'text-gray-500'}`}>
+      <span className="text-xl">{icon}</span>
+      <span className="text-[10px] font-bold tracking-wider">{label}</span>
+    </div>
+  );
+
+  if (href === '#') return content;
+  return <Link href={href}>{content}</Link>;
 }

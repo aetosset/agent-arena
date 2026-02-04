@@ -11,6 +11,7 @@ import { initDb, closeDb } from './db.js';
 import { wsManager } from './websocket.js';
 import { queueManager } from './queue.js';
 import { orchestrator } from './orchestrator.js';
+import { testBotManager } from './test-bots.js';
 import routes from './routes.js';
 import { mkdirSync } from 'fs';
 
@@ -21,6 +22,9 @@ mkdirSync('./data', { recursive: true });
 
 // Initialize database
 initDb();
+
+// Initialize test bots
+testBotManager.initBots();
 
 // Create Express app
 const app = express();
@@ -36,8 +40,27 @@ app.get('/health', (req, res) => {
     status: 'ok',
     timestamp: Date.now(),
     matchActive: orchestrator.isMatchActive(),
-    queueSize: queueManager.getState().bots.length
+    queueSize: queueManager.getState().bots.length,
+    connections: wsManager.getStats()
   });
+});
+
+// Admin endpoint to fill queue with test bots
+app.post('/api/admin/fill-queue', (req, res) => {
+  const target = req.body.target || 8;
+  testBotManager.fillQueueTo(target);
+  res.json({ success: true, message: `Filling queue to ${target} bots` });
+});
+
+// Admin endpoint to start match with test bots
+app.post('/api/admin/start-demo', async (req, res) => {
+  if (orchestrator.isMatchActive()) {
+    return res.json({ success: false, error: 'Match already in progress' });
+  }
+  
+  // Fill queue and start
+  testBotManager.fillQueueTo(8);
+  res.json({ success: true, message: 'Starting demo match with test bots' });
 });
 
 // Create HTTP server
@@ -54,6 +77,7 @@ queueManager.setMatchReadyHandler((botIds) => {
 // Graceful shutdown
 process.on('SIGINT', () => {
   console.log('\n🛑 Shutting down...');
+  testBotManager.disconnectAll();
   closeDb();
   process.exit(0);
 });
@@ -77,12 +101,15 @@ Endpoints:
   GET  /api/matches        - Recent matches
   GET  /api/matches/live   - Current match
   GET  /api/matches/:id    - Match replay data
-  GET  /api/status         - Server status
+  
+Admin:
+  POST /api/admin/fill-queue  - Fill queue with test bots
+  POST /api/admin/start-demo  - Start demo match
 
 WebSocket:
   ?apiKey=xxx              - Connect as bot
   (no params)              - Connect as spectator
 
-Waiting for bots to connect and queue up...
+Test bots initialized. Ready for matches!
   `);
 });

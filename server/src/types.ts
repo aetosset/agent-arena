@@ -2,6 +2,18 @@
  * Server Types for Agent Arena
  */
 
+// ============ GAME ITEM ============
+export interface GameItem {
+  id: string;
+  title: string;
+  price: number;           // Actual price in cents
+  proofUrl: string;        // URL proving the price
+  imageUrls?: string[];    // Multiple product images
+  category?: string;       // e.g., "electronics", "kitchen"
+  priceFetchedAt?: number; // Timestamp when price was verified
+  source?: string;         // Where price came from
+}
+
 // ============ BOT ============
 export interface Bot {
   id: string;

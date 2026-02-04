@@ -12,7 +12,7 @@
 import type { Match, MatchRound, MatchItem, RoundBid, RoundChat, BotPublic, BotCommand } from './types.js';
 import { wsManager } from './websocket.js';
 import { createMatch, updateMatch, getBot, botToPublic, updateBotStats } from './db.js';
-import { getRandomRealItems, REAL_ITEMS } from '../../game-engine/src/real-items.js';
+import { REAL_ITEMS } from './real-items.js';
 
 // Timing constants (ms)
 const ROUND_COUNTDOWN = 5000;        // 5s before round starts

@@ -1,119 +1,132 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Clock, ArrowLeft, Trophy, Users } from 'lucide-react';
 import Link from 'next/link';
-import { Clock, Play, Users, ChevronRight } from 'lucide-react';
-
-interface MatchSummary {
-  id: string;
-  winner: { name: string; avatar: string };
-  botCount: number;
-  rounds: number;
-  endedAt: number;
-}
 
 export default function HistoryPage() {
-  const [matches, setMatches] = useState<MatchSummary[]>([]);
+  const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Fetch from API
-    setMatches([
-      { id: '1', winner: { name: 'GPT-Oracle', avatar: '🤖' }, botCount: 8, rounds: 4, endedAt: Date.now() - 3600000 },
-      { id: '2', winner: { name: 'Claude-Sharp', avatar: '🧠' }, botCount: 8, rounds: 4, endedAt: Date.now() - 7200000 },
-      { id: '3', winner: { name: 'Lux-Prime', avatar: '✨' }, botCount: 8, rounds: 4, endedAt: Date.now() - 14400000 },
-      { id: '4', winner: { name: 'DeepMind-X', avatar: '🔮' }, botCount: 8, rounds: 3, endedAt: Date.now() - 28800000 },
-      { id: '5', winner: { name: 'Gemini-Pro', avatar: '♊' }, botCount: 8, rounds: 4, endedAt: Date.now() - 43200000 },
-    ]);
-    setLoading(false);
+    fetch('/api/matches?limit=20')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          setMatches(data.data || []);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
-  const formatTimeAgo = (timestamp: number) => {
-    const diff = Date.now() - timestamp;
+  const formatTimeAgo = (timestamp: string | number) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    
+    const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
-    if (hours < 1) return 'Just now';
+    const days = Math.floor(diff / 86400000);
+    
+    if (minutes < 60) return `${minutes}m ago`;
     if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
+    return `${days}d ago`;
   };
 
   return (
-    <div className="min-h-screen px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">
-            <Clock className="inline w-8 h-8 mr-2 text-brand-secondary" />
-            Match History
-          </h1>
-          <p className="text-text-secondary">Watch replays of past matches</p>
+    <div className="min-h-screen bg-[#0a0a0a] text-white pb-24">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-sm border-b border-[#00ff00]/20">
+        <div className="flex items-center gap-4 px-4 py-3">
+          <Link href="/" className="text-gray-400 hover:text-white">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div className="flex items-center gap-2">
+            <Clock className="w-5 h-5 text-[#00ff00]" />
+            <span className="font-bold text-lg">MATCH HISTORY</span>
+          </div>
         </div>
+      </header>
 
-        {/* Filters */}
-        <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
-          <button className="btn-primary text-sm whitespace-nowrap">All Matches</button>
-          <button className="btn-ghost text-sm whitespace-nowrap">Today</button>
-          <button className="btn-ghost text-sm whitespace-nowrap">This Week</button>
-          <button className="btn-ghost text-sm whitespace-nowrap">By Bot</button>
-        </div>
-
-        {/* Match List */}
-        <div className="space-y-4">
-          {loading ? (
-            <div className="card p-8 text-center text-text-muted">Loading...</div>
-          ) : (
-            matches.map((match) => (
+      <main className="px-4 py-6">
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">Loading...</div>
+        ) : matches.length === 0 ? (
+          <div className="text-center py-12">
+            <Clock className="w-16 h-16 text-gray-700 mx-auto mb-4" />
+            <p className="text-gray-500">No matches yet</p>
+            <p className="text-gray-600 text-sm mt-2">Matches will appear here after they finish</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {matches.map((match: any) => (
               <Link 
                 key={match.id}
                 href={`/match/${match.id}`}
-                className="card-interactive p-4 md:p-6 block"
+                className="block card p-4 border border-gray-800 hover:border-[#00ff00]/30 transition-colors"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    {/* Winner Avatar */}
-                    <div className="relative">
-                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-brand-primary to-pink-600 flex items-center justify-center text-2xl">
-                        {match.winner.avatar}
-                      </div>
-                      <span className="absolute -top-1 -right-1 text-xl">🏆</span>
-                    </div>
-
-                    {/* Match Info */}
-                    <div>
-                      <p className="font-semibold text-lg">{match.winner.name} won</p>
-                      <div className="flex items-center gap-3 text-text-secondary text-sm">
-                        <span className="flex items-center gap-1">
-                          <Users className="w-4 h-4" />
-                          {match.botCount} bots
-                        </span>
-                        <span>•</span>
-                        <span>{match.rounds} rounds</span>
-                      </div>
-                    </div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-4 h-4 text-[#00ff00]" />
+                    <span className="font-bold">{match.winner?.name || 'Unknown'}</span>
+                    <span className="text-[#00ff00] text-xs">WON</span>
                   </div>
-
-                  {/* Time & Action */}
-                  <div className="flex items-center gap-4">
-                    <span className="text-text-muted text-sm hidden sm:block">
-                      {formatTimeAgo(match.endedAt)}
-                    </span>
-                    <div className="flex items-center gap-2 text-brand-primary">
-                      <Play className="w-5 h-5" />
-                      <span className="hidden sm:inline">Replay</span>
-                    </div>
+                  <div className="text-gray-500 text-xs">
+                    {match.endedAt ? formatTimeAgo(match.endedAt) : 'Just now'}
                   </div>
                 </div>
-              </Link>
-            ))
-          )}
-        </div>
 
-        {/* Load More */}
-        <div className="text-center mt-8">
-          <button className="btn-secondary">
-            Load More Matches
-          </button>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-1 text-gray-400">
+                    <Users className="w-4 h-4" />
+                    <span>{match.bots?.length || 8} bots</span>
+                  </div>
+                  <div className="text-gray-500">
+                    {match.roundCount || 4} rounds
+                  </div>
+                </div>
+
+                {/* Bot avatars preview */}
+                <div className="flex gap-1 mt-3">
+                  {(match.bots || []).slice(0, 8).map((bot: any, idx: number) => (
+                    <div 
+                      key={bot.id || idx}
+                      className={`w-8 h-8 rounded bg-[#1a1a1a] flex items-center justify-center text-sm ${
+                        bot.id === match.winner?.id ? 'ring-2 ring-[#00ff00]' : ''
+                      }`}
+                    >
+                      {bot.avatar || '🤖'}
+                    </div>
+                  ))}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a] border-t border-[#00ff00]/20 pb-safe">
+        <div className="flex justify-around py-2">
+          <NavItem icon="🏠" label="Arena" href="/" />
+          <NavItem icon="📊" label="Board" href="/leaderboard" />
+          <NavItem icon="📜" label="History" active />
+          <NavItem icon="🤖" label="My Bot" href="/register" />
         </div>
-      </div>
+      </nav>
     </div>
   );
+}
+
+function NavItem({ icon, label, active = false, href = '#' }: { icon: string; label: string; active?: boolean; href?: string }) {
+  const content = (
+    <div className={`flex flex-col items-center gap-1 px-4 py-1 ${active ? 'text-[#00ff00]' : 'text-gray-500'}`}>
+      <span className="text-xl">{icon}</span>
+      <span className="text-[10px] font-bold tracking-wider">{label}</span>
+    </div>
+  );
+
+  if (href === '#') return content;
+  return <Link href={href}>{content}</Link>;
 }
