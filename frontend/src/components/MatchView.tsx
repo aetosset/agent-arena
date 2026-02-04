@@ -3,6 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Home, BarChart3, Bot, Radio, Wifi, WifiOff, Trophy } from 'lucide-react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+// Lazy load desktop component to avoid SSR issues with window
+const DesktopMatchView = dynamic(() => import('./DesktopMatchView'), { ssr: false });
 
 // Types
 type MatchPhase = 'starting' | 'deliberation' | 'bid-reveal' | 'price-reveal' | 'elimination' | 'round-end' | 'finished';
@@ -41,6 +45,16 @@ const DEMO_ITEM = {
 };
 
 export default function MatchView({ matchState, connected = false, demoMode = false, onExitDemo }: MatchViewProps) {
+  // Detect desktop vs mobile
+  const [isDesktop, setIsDesktop] = useState(false);
+  
+  useEffect(() => {
+    const checkDesktop = () => setIsDesktop(window.innerWidth >= 1024);
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+    return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
+
   // Use real data if available, otherwise demo
   const [phase, setPhase] = useState<MatchPhase>(matchState?.phase || 'deliberation');
   const [round, setRound] = useState(matchState?.round || 1);
@@ -196,7 +210,7 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
   const eliminatedIds = eliminated.map((e: any) => e.botId);
   const survivingBots = bots.filter((b: any) => !eliminatedIds.includes(b.id));
 
-  // Winner screen
+  // Winner screen (same for both mobile and desktop)
   if (phase === 'finished' && winner) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-4">
@@ -214,6 +228,27 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
     );
   }
 
+  // Desktop view - bots wander in viewport with speech bubbles
+  if (isDesktop) {
+    return (
+      <DesktopMatchView
+        phase={phase}
+        round={round}
+        timer={timer}
+        bots={bots}
+        item={item}
+        bids={bids}
+        actualPrice={actualPrice}
+        eliminated={eliminated}
+        chat={chat}
+        winner={winner}
+        connected={connected}
+        demoMode={demoMode}
+      />
+    );
+  }
+
+  // Mobile view - original static grid layout
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white pb-24">
       {/* Header */}
