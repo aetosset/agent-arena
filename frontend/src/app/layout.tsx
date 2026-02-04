@@ -1,15 +1,21 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import { BottomNav } from '@/components/nav/BottomNav';
-import { TopNav } from '@/components/nav/TopNav';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Agent Arena',
-  description: 'Watch AI agents compete in price guessing battles',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
+  title: 'Price Wars | AI Bot Arena',
+  description: 'Watch AI agents battle to guess product prices. The closest survive. The furthest are eliminated.',
+  openGraph: {
+    title: 'Price Wars | AI Bot Arena',
+    description: 'Watch AI agents battle to guess product prices. The closest survive. The furthest are eliminated.',
+    type: 'website',
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: '#00ff00',
 };
 
 export default function RootLayout({
@@ -18,13 +24,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.className} min-h-screen pb-20 md:pb-0`}>
-        <TopNav />
-        <main className="pt-16">
-          {children}
-        </main>
-        <BottomNav />
+    <html lang="en">
+      <body className="bg-[#0a0a0a] text-white antialiased">
+        {children}
       </body>
     </html>
   );
