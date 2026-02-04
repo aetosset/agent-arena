@@ -14,11 +14,19 @@ interface BotData {
   bid?: number;
 }
 
-interface BotPosition {
-  x: number;
-  y: number;
-  targetX: number;
-  targetY: number;
+interface GridPosition {
+  col: number; // Grid column (0 to GRID_COLS-1)
+  row: number; // Grid row (0 to GRID_ROWS-1)
+}
+
+// Convert grid position to pixel position (for rendering)
+function gridToPixel(col: number, row: number, viewportWidth: number): { x: number; y: number } {
+  const offsetX = (viewportWidth - GRID_COLS * CELL_SIZE) / 2; // Center grid horizontally
+  const offsetY = (VIEWPORT_HEIGHT - GRID_ROWS * CELL_SIZE) / 2; // Center grid vertically
+  return {
+    x: offsetX + col * CELL_SIZE + CELL_SIZE / 2,
+    y: offsetY + row * CELL_SIZE + CELL_SIZE / 2
+  };
 }
 
 interface SpeechBubble {
@@ -44,9 +52,19 @@ interface DesktopMatchViewProps {
 }
 
 const VIEWPORT_HEIGHT = 450;
-const BOT_SIZE = 64;
-const MOVE_INTERVAL = 80; // ms between position updates (faster)
-const GRID_SNAP = 12; // pixel grid for blocky movement (larger steps)
+const BOT_SIZE = 48;
+const CELL_SIZE = 56; // Grid cell size in pixels
+const MOVE_INTERVAL = 200; // ms between moves (one cell per tick)
+const GRID_COLS = 14; // Number of columns
+const GRID_ROWS = 8; // Number of rows
+
+// Direction vectors for cardinal movement only
+const DIRECTIONS = [
+  { dx: 0, dy: -1 }, // up
+  { dx: 0, dy: 1 },  // down
+  { dx: -1, dy: 0 }, // left
+  { dx: 1, dy: 0 },  // right
+];
 
 export default function DesktopMatchView({
   phase,
@@ -64,30 +82,60 @@ export default function DesktopMatchView({
 }: DesktopMatchViewProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewportWidth, setViewportWidth] = useState(800);
-  const [botPositions, setBotPositions] = useState<Map<string, BotPosition>>(new Map());
+  const [botGridPositions, setBotGridPositions] = useState<Map<string, GridPosition>>(new Map());
+  const [occupiedCells, setOccupiedCells] = useState<Set<string>>(new Set()); // "col,row" strings
   const [speechBubbles, setSpeechBubbles] = useState<SpeechBubble[]>([]);
   const [chatInput, setChatInput] = useState('');
 
   const eliminatedIds = eliminated.map((e: any) => e.botId);
 
-  // Initialize bot positions
+  // Helper to check if a cell is occupied
+  const isCellOccupied = (col: number, row: number, excludeBotId?: string): boolean => {
+    let occupied = false;
+    botGridPositions.forEach((pos, botId) => {
+      if (botId !== excludeBotId && pos.col === col && pos.row === row) {
+        occupied = true;
+      }
+    });
+    return occupied;
+  };
+
+  // Initialize bot positions on grid
   useEffect(() => {
     if (!viewportRef.current) return;
     const width = viewportRef.current.offsetWidth;
     setViewportWidth(width);
 
-    const newPositions = new Map<string, BotPosition>();
+    const newPositions = new Map<string, GridPosition>();
+    const usedCells = new Set<string>();
+    
     bots.forEach((bot, idx) => {
-      // Spread bots around the viewport initially
-      const angle = (idx / bots.length) * Math.PI * 2;
-      const radius = Math.min(width, VIEWPORT_HEIGHT) * 0.3;
-      const centerX = width / 2;
-      const centerY = VIEWPORT_HEIGHT / 2;
-      const x = snapToGrid(centerX + Math.cos(angle) * radius);
-      const y = snapToGrid(centerY + Math.sin(angle) * radius);
-      newPositions.set(bot.id, { x, y, targetX: x, targetY: y });
+      // Spread bots around the grid initially
+      let col: number, row: number;
+      let attempts = 0;
+      
+      do {
+        // Position bots in a rough circle around center
+        const angle = (idx / bots.length) * Math.PI * 2;
+        const radius = Math.min(GRID_COLS, GRID_ROWS) * 0.35;
+        const centerCol = Math.floor(GRID_COLS / 2);
+        const centerRow = Math.floor(GRID_ROWS / 2);
+        
+        col = Math.floor(centerCol + Math.cos(angle) * radius + (Math.random() - 0.5) * 2);
+        row = Math.floor(centerRow + Math.sin(angle) * radius + (Math.random() - 0.5) * 2);
+        
+        // Clamp to grid bounds
+        col = Math.max(0, Math.min(GRID_COLS - 1, col));
+        row = Math.max(0, Math.min(GRID_ROWS - 1, row));
+        attempts++;
+      } while (usedCells.has(`${col},${row}`) && attempts < 50);
+      
+      usedCells.add(`${col},${row}`);
+      newPositions.set(bot.id, { col, row });
     });
-    setBotPositions(newPositions);
+    
+    setBotGridPositions(newPositions);
+    setOccupiedCells(usedCells);
   }, [bots]);
 
   // Handle viewport resize
@@ -101,51 +149,60 @@ export default function DesktopMatchView({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Bot wandering movement during deliberation
+  // Bot wandering movement during deliberation - grid-based, cardinal directions only
   useEffect(() => {
     if (phase !== 'deliberation') return;
 
     const interval = setInterval(() => {
-      setBotPositions(prev => {
+      setBotGridPositions(prev => {
         const newPositions = new Map(prev);
+        
+        // Build current occupied cells set
+        const currentOccupied = new Set<string>();
+        newPositions.forEach((pos) => {
+          currentOccupied.add(`${pos.col},${pos.row}`);
+        });
         
         bots.forEach(bot => {
           if (eliminatedIds.includes(bot.id)) return;
           
+          // 40% chance to move this tick (creates varied movement)
+          if (Math.random() > 0.4) return;
+          
           const pos = newPositions.get(bot.id);
           if (!pos) return;
 
-          // Move toward target
-          let newX = pos.x;
-          let newY = pos.y;
-          
-          if (Math.abs(pos.x - pos.targetX) > GRID_SNAP) {
-            newX = pos.x + (pos.targetX > pos.x ? GRID_SNAP : -GRID_SNAP);
-          }
-          if (Math.abs(pos.y - pos.targetY) > GRID_SNAP) {
-            newY = pos.y + (pos.targetY > pos.y ? GRID_SNAP : -GRID_SNAP);
-          }
+          // Remove current position from occupied set temporarily
+          currentOccupied.delete(`${pos.col},${pos.row}`);
 
-          // Pick new target if reached current one OR randomly change direction (10% chance)
-          let newTargetX = pos.targetX;
-          let newTargetY = pos.targetY;
+          // Pick a random cardinal direction
+          const shuffledDirs = [...DIRECTIONS].sort(() => Math.random() - 0.5);
           
-          const reachedTarget = Math.abs(newX - pos.targetX) <= GRID_SNAP && Math.abs(newY - pos.targetY) <= GRID_SNAP;
-          const randomChange = Math.random() < 0.08; // 8% chance to change direction
-          
-          if (reachedTarget || randomChange) {
-            // Random new target within viewport bounds
-            const margin = BOT_SIZE;
-            newTargetX = snapToGrid(margin + Math.random() * (viewportWidth - margin * 2));
-            newTargetY = snapToGrid(margin + Math.random() * (VIEWPORT_HEIGHT - margin * 2));
+          for (const dir of shuffledDirs) {
+            const newCol = pos.col + dir.dx;
+            const newRow = pos.row + dir.dy;
+            
+            // Check bounds
+            if (newCol < 0 || newCol >= GRID_COLS || newRow < 0 || newRow >= GRID_ROWS) {
+              continue;
+            }
+            
+            // Check if cell is free
+            const cellKey = `${newCol},${newRow}`;
+            if (currentOccupied.has(cellKey)) {
+              continue;
+            }
+            
+            // Move to this cell
+            newPositions.set(bot.id, { col: newCol, row: newRow });
+            currentOccupied.add(cellKey);
+            break;
           }
-
-          newPositions.set(bot.id, {
-            x: newX,
-            y: newY,
-            targetX: newTargetX,
-            targetY: newTargetY
-          });
+          
+          // If couldn't move, re-add current position
+          if (!currentOccupied.has(`${pos.col},${pos.row}`)) {
+            currentOccupied.add(`${pos.col},${pos.row}`);
+          }
         });
 
         return newPositions;
@@ -153,7 +210,7 @@ export default function DesktopMatchView({
     }, MOVE_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [phase, bots, eliminatedIds, viewportWidth]);
+  }, [phase, bots, eliminatedIds]);
 
   // Handle chat messages -> speech bubbles
   useEffect(() => {
@@ -311,22 +368,25 @@ export default function DesktopMatchView({
 
             {/* Bots */}
             {bots.map(bot => {
-              const pos = botPositions.get(bot.id);
+              const gridPos = botGridPositions.get(bot.id);
               const isElim = eliminatedIds.includes(bot.id);
               const bubble = speechBubbles.find(b => b.botId === bot.id);
               
-              if (!pos) return null;
+              if (!gridPos) return null;
+              
+              // Convert grid position to pixel position
+              const pixelPos = gridToPixel(gridPos.col, gridPos.row, viewportWidth);
 
               return (
                 <div
                   key={bot.id}
                   className="absolute transition-all"
                   style={{
-                    left: pos.x - BOT_SIZE / 2,
-                    top: pos.y - BOT_SIZE / 2,
+                    left: pixelPos.x - BOT_SIZE / 2,
+                    top: pixelPos.y - BOT_SIZE / 2,
                     width: BOT_SIZE,
-                    transitionDuration: `${MOVE_INTERVAL}ms`,
-                    transitionTimingFunction: 'linear'
+                    transitionDuration: `${MOVE_INTERVAL - 20}ms`, // Slightly faster than interval for snappy feel
+                    transitionTimingFunction: 'steps(1)' // Instant snap, no easing
                   }}
                 >
                   {/* Speech Bubble */}
@@ -490,8 +550,4 @@ function ViewportBot({ bot, isEliminated, isActive, phase }: {
       </div>
     </div>
   );
-}
-
-function snapToGrid(value: number): number {
-  return Math.round(value / GRID_SNAP) * GRID_SNAP;
 }
