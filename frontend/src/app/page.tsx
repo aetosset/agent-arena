@@ -4,6 +4,7 @@ import { useState } from 'react';
 import MatchRound1 from '@/components/MatchRound1';
 import Lobby from '@/components/Lobby';
 
+// Build: 2026-02-05-v2 - force cache bust
 export default function HomePage() {
   const [showMatch, setShowMatch] = useState(false);
 
