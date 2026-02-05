@@ -2,299 +2,349 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import {
-  GameState,
-  createGame,
-  tick,
-  timeLeft,
-  activeBots,
-  COLS,
-  ROWS,
-} from '@/lib/gameEngineV2';
 
-const CELL = 56;
-const BOT_SIZE = 48;
+// ========== INLINE GAME STATE (no imports, no indirection) ==========
+
+type Phase = 'deliberation' | 'reveal' | 'elimination' | 'finished';
+
+interface Bot {
+  id: string;
+  name: string;
+  avatar: string;
+  eliminated: boolean;
+  col: number;
+  row: number;
+  bid: number | null;
+}
+
+interface Game {
+  phase: Phase;
+  round: number;
+  startTime: number;
+  bots: Bot[];
+  price: number;
+  eliminated: string[];
+}
+
+const COLS = 12;
+const ROWS = 6;
+const CELL = 64;
+
+const PHASE_MS = {
+  deliberation: 12000,
+  reveal: 3000,
+  elimination: 3000,
+};
+
+// Initial bot setup
+function createBots(): Bot[] {
+  const names = ['GROK', 'SNIPE', 'ARCH', 'HYPE', 'BID-LORD', 'FLUX', 'NEO', 'ZEN'];
+  const avatars = ['🤖', '🦾', '👾', '🔮', '🧠', '⚡', '💎', '🎯'];
+  
+  return names.map((name, i) => {
+    // Spread bots across grid
+    const col = 2 + (i % 4) * 2;
+    const row = 1 + Math.floor(i / 4) * 3;
+    return {
+      id: `bot-${i}`,
+      name,
+      avatar: avatars[i],
+      eliminated: false,
+      col,
+      row,
+      bid: null,
+    };
+  });
+}
+
+function createGame(): Game {
+  return {
+    phase: 'deliberation',
+    round: 1,
+    startTime: Date.now(),
+    bots: createBots(),
+    price: 4500, // $45.00
+    eliminated: [],
+  };
+}
+
+// ========== COMPONENT ==========
 
 export default function MatchRound1() {
-  const [game, setGame] = useState<GameState | null>(null);
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const [vpWidth, setVpWidth] = useState(800);
+  const [game, setGame] = useState<Game | null>(null);
+  const [tickCount, setTickCount] = useState(0);
+  const tickRef = useRef(0);
 
-  // Start game immediately on mount
+  // Initialize game on mount
   useEffect(() => {
+    console.log('🎮 Initializing game');
     setGame(createGame());
   }, []);
 
-  // Track viewport width
+  // Movement loop - SEPARATE from game state
   useEffect(() => {
-    const update = () => {
-      if (viewportRef.current) {
-        setVpWidth(viewportRef.current.offsetWidth);
-      }
+    if (!game || game.phase !== 'deliberation') {
+      console.log('❌ Movement loop not starting:', game?.phase);
+      return;
+    }
+    
+    console.log('✅ Starting movement loop');
+    
+    const interval = setInterval(() => {
+      tickRef.current++;
+      setTickCount(tickRef.current);
+      
+      // Move bots randomly
+      setGame(prev => {
+        if (!prev || prev.phase !== 'deliberation') return prev;
+        
+        const occupied = new Set(prev.bots.map(b => `${b.col},${b.row}`));
+        
+        const newBots = prev.bots.map(bot => {
+          if (bot.eliminated) return bot;
+          if (Math.random() > 0.3) return bot; // 30% chance to move
+          
+          occupied.delete(`${bot.col},${bot.row}`);
+          
+          // Random direction
+          const dirs = [[0,-1], [0,1], [-1,0], [1,0]];
+          const [dx, dy] = dirs[Math.floor(Math.random() * dirs.length)];
+          const newCol = bot.col + dx;
+          const newRow = bot.row + dy;
+          
+          if (
+            newCol >= 0 && newCol < COLS &&
+            newRow >= 0 && newRow < ROWS &&
+            !occupied.has(`${newCol},${newRow}`)
+          ) {
+            console.log(`🚶 ${bot.name} moved to (${newCol}, ${newRow})`);
+            occupied.add(`${newCol},${newRow}`);
+            return { ...bot, col: newCol, row: newRow };
+          }
+          
+          occupied.add(`${bot.col},${bot.row}`);
+          return bot;
+        });
+        
+        return { ...prev, bots: newBots };
+      });
+    }, 300); // Move check every 300ms
+    
+    return () => {
+      console.log('🛑 Stopping movement loop');
+      clearInterval(interval);
     };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
-
-  // Game loop - tick every 100ms
-  useEffect(() => {
-    if (!game || game.phase === 'finished') return;
-    const id = setInterval(() => setGame(g => g ? tick(g) : null), 100);
-    return () => clearInterval(id);
   }, [game?.phase]);
 
-  // Grid position to pixels
-  const toPixel = useCallback((col: number, row: number) => {
-    const gw = COLS * CELL;
-    const ox = (vpWidth - gw) / 2;
-    return {
-      x: ox + col * CELL + CELL / 2,
-      y: 20 + row * CELL + CELL / 2,
-    };
-  }, [vpWidth]);
+  // Phase timer
+  useEffect(() => {
+    if (!game || game.phase === 'finished') return;
+    
+    const duration = PHASE_MS[game.phase as keyof typeof PHASE_MS] || 3000;
+    const elapsed = Date.now() - game.startTime;
+    const remaining = duration - elapsed;
+    
+    if (remaining <= 0) {
+      // Advance phase
+      advancePhase();
+      return;
+    }
+    
+    const timeout = setTimeout(advancePhase, remaining);
+    return () => clearTimeout(timeout);
+  }, [game?.phase, game?.startTime]);
+
+  function advancePhase() {
+    setGame(prev => {
+      if (!prev) return prev;
+      
+      console.log(`⏭️ Advancing from ${prev.phase}`);
+      
+      switch (prev.phase) {
+        case 'deliberation': {
+          // Generate bids
+          const withBids = prev.bots.map(b => ({
+            ...b,
+            bid: b.eliminated ? null : Math.floor(prev.price * (0.6 + Math.random() * 0.8))
+          }));
+          return { ...prev, phase: 'reveal', startTime: Date.now(), bots: withBids };
+        }
+        
+        case 'reveal': {
+          // Eliminate 2 worst
+          const active = prev.bots.filter(b => !b.eliminated);
+          const sorted = [...active].sort((a, b) => {
+            const distA = Math.abs((a.bid || 0) - prev.price);
+            const distB = Math.abs((b.bid || 0) - prev.price);
+            return distB - distA;
+          });
+          const elimIds = sorted.slice(0, 2).map(b => b.id);
+          const newBots = prev.bots.map(b => 
+            elimIds.includes(b.id) ? { ...b, eliminated: true } : b
+          );
+          return { ...prev, phase: 'elimination', startTime: Date.now(), bots: newBots, eliminated: elimIds };
+        }
+        
+        case 'elimination': {
+          const remaining = prev.bots.filter(b => !b.eliminated);
+          if (remaining.length <= 1) {
+            return { ...prev, phase: 'finished' };
+          }
+          // Next round
+          return {
+            ...prev,
+            phase: 'deliberation',
+            round: prev.round + 1,
+            startTime: Date.now(),
+            price: [4500, 4000, 20000, 900][prev.round] || 5000,
+            eliminated: [],
+            bots: prev.bots.map(b => ({ ...b, bid: null })),
+          };
+        }
+        
+        default:
+          return prev;
+      }
+    });
+  }
 
   if (!game) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="text-[#00ff00] text-xl">Loading...</div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-green-400 text-xl">Loading...</div>
       </div>
     );
   }
 
-  const remaining = timeLeft(game);
-  const active = activeBots(game);
-
-  // Winner screen
   if (game.phase === 'finished') {
-    const winner = game.bots.find(b => b.id === game.winnerId);
+    const winner = game.bots.find(b => !b.eliminated);
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center">
         <div className="text-6xl mb-4">🏆</div>
-        <h1 className="text-4xl font-bold text-[#00ff00] mb-2">WINNER!</h1>
+        <h1 className="text-4xl font-bold text-green-400 mb-2">WINNER!</h1>
         <div className="text-6xl mb-4">{winner?.avatar}</div>
         <div className="text-2xl font-bold mb-8">{winner?.name}</div>
-        <Link href="/" className="px-6 py-3 bg-[#00ff00] text-black font-bold rounded-lg">
+        <Link href="/" className="px-6 py-3 bg-green-400 text-black font-bold rounded-lg">
           Back to Lobby
         </Link>
       </div>
     );
   }
 
-  const formatTime = (ms: number) => {
-    const s = Math.ceil(ms / 1000);
-    return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
-  };
+  const elapsed = Date.now() - game.startTime;
+  const duration = PHASE_MS[game.phase as keyof typeof PHASE_MS] || 3000;
+  const remaining = Math.max(0, Math.ceil((duration - elapsed) / 1000));
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div className="min-h-screen bg-black text-white p-4">
       {/* Header */}
-      <header className="border-b border-[#00ff00]/20 px-6 py-3">
-        <div className="flex items-center justify-between max-w-[1600px] mx-auto">
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-[#00ff00] rotate-45 flex items-center justify-center">
-              <span className="text-black font-bold text-sm -rotate-45">◆</span>
-            </div>
-            <span className="font-bold text-xl">PRICE WARS</span>
-            <span className="text-gray-500">|</span>
-            <span className="text-[#00ff00] text-sm font-bold uppercase tracking-wider">
-              {game.phase === 'deliberation' && 'DELIBERATION'}
-              {game.phase === 'reveal' && 'REVEALING BIDS'}
-              {game.phase === 'elimination' && 'ELIMINATION'}
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <span className="text-white font-bold">ROUND {game.round}/4</span>
-              <div className="flex gap-1">
-                {[1,2,3,4].map(r => (
-                  <div key={r} className={`w-5 h-2 rounded-full ${r <= game.round ? 'bg-[#00ff00]' : 'bg-gray-700'}`} />
-                ))}
-              </div>
-            </div>
-            
-            <div className="font-mono text-2xl font-bold text-[#00ff00] w-16 text-right">
-              {formatTime(remaining)}
-            </div>
-
-            <div className="px-3 py-1.5 border border-[#00ff00]/50 rounded-full">
-              <span className="text-gray-400 text-sm">DEMO</span>
-            </div>
-          </div>
+      <div className="flex justify-between items-center mb-4 border-b border-green-400/30 pb-4">
+        <div>
+          <span className="text-green-400 font-bold text-lg">ROUND {game.round}</span>
+          <span className="text-gray-500 mx-2">|</span>
+          <span className="text-yellow-400 uppercase">{game.phase}</span>
         </div>
-      </header>
+        <div className="text-right">
+          <div className="text-3xl font-mono font-bold text-green-400">{remaining}s</div>
+          <div className="text-gray-500 text-xs">tick #{tickCount}</div>
+        </div>
+      </div>
 
-      <div className="flex max-w-[1600px] mx-auto">
-        {/* Main Area */}
-        <div className="flex-1 p-6">
-          {/* Item Card */}
-          <div className="mb-4 p-4 bg-[#111] rounded-lg border border-[#00ff00]/20">
-            <div className="flex items-center gap-6">
-              <div className="w-20 h-20 bg-gray-800 rounded-lg flex items-center justify-center text-4xl">
-                📦
+      {/* Item */}
+      <div className="bg-gray-900 rounded-lg p-4 mb-4 flex items-center gap-4">
+        <div className="text-4xl">📦</div>
+        <div className="flex-1">
+          <div className="text-green-400 text-xs">GUESS THE PRICE</div>
+          <div className="text-xl font-bold">Cat Butt Tissue Dispenser</div>
+        </div>
+        {(game.phase === 'reveal' || game.phase === 'elimination') && (
+          <div className="text-right">
+            <div className="text-gray-500 text-xs">ACTUAL</div>
+            <div className="text-2xl font-bold text-green-400">${(game.price / 100).toFixed(2)}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Grid */}
+      <div 
+        className="relative bg-gray-900 rounded-lg overflow-hidden mx-auto"
+        style={{ 
+          width: COLS * CELL, 
+          height: ROWS * CELL,
+          backgroundImage: 'linear-gradient(rgba(0,255,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,0,0.1) 1px, transparent 1px)',
+          backgroundSize: `${CELL}px ${CELL}px`
+        }}
+      >
+        {game.bots.map(bot => {
+          const isElimThisRound = game.eliminated.includes(bot.id);
+          
+          return (
+            <div
+              key={bot.id}
+              className="absolute transition-all duration-200 ease-out flex flex-col items-center"
+              style={{
+                left: bot.col * CELL + CELL / 2 - 28,
+                top: bot.row * CELL + CELL / 2 - 28,
+                opacity: bot.eliminated && !isElimThisRound ? 0.3 : 1,
+              }}
+            >
+              <div 
+                className={`w-14 h-14 rounded-lg border-2 flex items-center justify-center text-2xl
+                  ${bot.eliminated ? 'border-red-500 bg-red-500/20' : 'border-green-400/50 bg-gray-800'}
+                  ${isElimThisRound ? 'animate-pulse' : ''}
+                `}
+              >
+                {bot.avatar}
+                {bot.eliminated && <span className="absolute text-red-500 text-3xl">✕</span>}
               </div>
-              <div className="flex-1">
-                <span className="text-[#00ff00] text-xs font-bold">ITEM #{game.round}</span>
-                <h2 className="text-xl font-bold">{game.item.title}</h2>
+              <div className={`text-xs font-bold mt-1 ${bot.eliminated ? 'text-red-400' : 'text-gray-400'}`}>
+                {bot.name}
               </div>
-              {(game.phase === 'reveal' || game.phase === 'elimination') && (
-                <div className="text-right">
-                  <span className="text-gray-500 text-xs">ACTUAL PRICE</span>
-                  <div className="text-3xl font-bold text-[#00ff00]">
-                    ${(game.actualPrice / 100).toFixed(2)}
-                  </div>
+              {(game.phase === 'reveal' || game.phase === 'elimination') && bot.bid && (
+                <div className="text-xs text-green-400 font-mono">
+                  ${(bot.bid / 100).toFixed(0)}
                 </div>
               )}
             </div>
-          </div>
+          );
+        })}
 
-          {/* Bot Viewport */}
-          <div 
-            ref={viewportRef}
-            className="relative bg-[#0d0d0d] rounded-lg border border-gray-800 overflow-hidden"
-            style={{ height: ROWS * CELL + 40 }}
-          >
-            {/* Grid lines */}
-            <div 
-              className="absolute inset-0 opacity-10"
-              style={{
-                backgroundImage: 'linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px)',
-                backgroundSize: `${CELL}px ${CELL}px`
-              }}
-            />
-
-            {/* Bots */}
-            {game.bots.map(bot => {
-              const pos = toPixel(bot.gridCol, bot.gridRow);
-              const chat = game.chat.find(c => c.botId === bot.id && Date.now() - c.time < 3000);
-              const isElimThisRound = game.eliminatedThisRound.includes(bot.id);
-              
-              return (
-                <div
-                  key={bot.id}
-                  className="absolute transition-all duration-150 ease-out"
-                  style={{
-                    left: pos.x - BOT_SIZE / 2,
-                    top: pos.y - BOT_SIZE / 2,
-                    opacity: bot.eliminated && !isElimThisRound ? 0.3 : 1,
-                  }}
-                >
-                  {/* Chat bubble */}
-                  {chat && !bot.eliminated && (
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-20">
-                      <div className="bg-[#00ff00] text-black text-xs px-2 py-1 rounded-lg rounded-bl-none max-w-[160px] truncate">
-                        {chat.message}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Avatar */}
-                  <div 
-                    className={`w-12 h-12 rounded-lg border-2 flex items-center justify-center text-2xl
-                      ${bot.eliminated ? 'border-red-500 grayscale' : 'border-gray-600'}
-                      ${isElimThisRound ? 'animate-pulse border-red-500' : ''}
-                    `}
-                    style={{ backgroundColor: bot.eliminated ? 'rgba(239,68,68,0.2)' : getColor(bot.avatar) }}
-                  >
-                    {bot.avatar}
-                    {bot.eliminated && (
-                      <span className="absolute text-red-500 text-2xl font-bold">✕</span>
-                    )}
-                  </div>
-                  
-                  <div className={`text-center mt-1 text-[10px] font-bold truncate ${bot.eliminated ? 'text-red-400' : 'text-gray-400'}`}>
-                    {bot.name}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Elimination overlay */}
-            {game.phase === 'elimination' && game.eliminatedThisRound.length > 0 && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-30">
-                <div className="text-center">
-                  <div className="text-red-500 text-xl font-bold mb-2">⚠ ELIMINATED ⚠</div>
-                  <div className="text-2xl font-bold text-white">
-                    {game.bots
-                      .filter(b => game.eliminatedThisRound.includes(b.id))
-                      .map(b => `${b.avatar} ${b.name}`)
-                      .join('  •  ')}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Bid Results Table */}
-          {(game.phase === 'reveal' || game.phase === 'elimination') && (
-            <div className="mt-4 p-4 bg-[#111] rounded-lg border border-gray-800">
-              <div className="text-[#00ff00] text-xs font-bold mb-3">BID RESULTS</div>
-              <div className="grid grid-cols-4 gap-2">
-                {game.bots.filter(b => !b.eliminated || game.eliminatedThisRound.includes(b.id)).map(bot => {
-                  const isOut = game.eliminatedThisRound.includes(bot.id);
-                  const dist = Math.abs((bot.bid || 0) - game.actualPrice);
-                  
-                  return (
-                    <div 
-                      key={bot.id}
-                      className={`p-2 rounded-lg border ${isOut ? 'bg-red-500/10 border-red-500/50' : 'bg-gray-900 border-gray-700'}`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-lg">{bot.avatar}</span>
-                        <span className={`font-bold text-xs ${isOut ? 'text-red-400' : ''}`}>{bot.name}</span>
-                      </div>
-                      <div className={`font-mono font-bold ${isOut ? 'text-red-400' : ''}`}>
-                        ${((bot.bid || 0) / 100).toFixed(2)}
-                      </div>
-                      <div className={`text-xs mt-0.5 ${dist < game.actualPrice * 0.15 ? 'text-green-400' : 'text-red-400'}`}>
-                        ${(dist / 100).toFixed(2)} off
-                      </div>
-                    </div>
-                  );
-                })}
+        {/* Elimination overlay */}
+        {game.phase === 'elimination' && game.eliminated.length > 0 && (
+          <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-red-500 text-2xl font-bold mb-2">⚠️ ELIMINATED ⚠️</div>
+              <div className="text-xl">
+                {game.bots.filter(b => game.eliminated.includes(b.id)).map(b => 
+                  `${b.avatar} ${b.name}`
+                ).join('  •  ')}
               </div>
             </div>
-          )}
-        </div>
-
-        {/* Chat Sidebar */}
-        <div className="w-[280px] border-l border-gray-800 flex flex-col h-[calc(100vh-73px)]">
-          <div className="p-4 border-b border-gray-800">
-            <div className="text-[#00ff00] text-xs font-bold">LIVE CHAT</div>
-            <div className="text-gray-500 text-xs mt-1">{active.length} bots active</div>
           </div>
-          
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            {game.chat.length === 0 ? (
-              <div className="text-gray-600 text-sm text-center py-8">
-                Waiting for bots...
-              </div>
-            ) : (
-              game.chat.map(msg => (
-                <div key={msg.id} className="text-sm">
-                  <span className="text-[#00ff00] font-bold">{msg.botName}</span>
-                  <p className="text-gray-300">{msg.message}</p>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        )}
       </div>
+
+      {/* Bid results */}
+      {(game.phase === 'reveal' || game.phase === 'elimination') && (
+        <div className="mt-4 grid grid-cols-4 gap-2">
+          {game.bots.filter(b => !b.eliminated || game.eliminated.includes(b.id)).map(bot => {
+            const isOut = game.eliminated.includes(bot.id);
+            const dist = Math.abs((bot.bid || 0) - game.price);
+            return (
+              <div key={bot.id} className={`p-2 rounded ${isOut ? 'bg-red-500/20 border border-red-500' : 'bg-gray-800'}`}>
+                <div className="flex items-center gap-1">
+                  <span>{bot.avatar}</span>
+                  <span className={`text-xs font-bold ${isOut ? 'text-red-400' : ''}`}>{bot.name}</span>
+                </div>
+                <div className="font-mono">${((bot.bid || 0) / 100).toFixed(2)}</div>
+                <div className={`text-xs ${dist < game.price * 0.2 ? 'text-green-400' : 'text-red-400'}`}>
+                  ${(dist / 100).toFixed(2)} off
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
-}
-
-function getColor(avatar: string): string {
-  const colors: Record<string, string> = {
-    '🤖': 'rgba(59,130,246,0.3)',
-    '🦾': 'rgba(234,179,8,0.3)',
-    '👾': 'rgba(168,85,247,0.3)',
-    '🔮': 'rgba(236,72,153,0.3)',
-    '🧠': 'rgba(244,114,182,0.3)',
-    '⚡': 'rgba(250,204,21,0.3)',
-    '💎': 'rgba(34,211,238,0.3)',
-    '🎯': 'rgba(239,68,68,0.3)',
-  };
-  return colors[avatar] || 'rgba(100,100,100,0.3)';
 }
