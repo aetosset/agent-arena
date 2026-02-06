@@ -1,23 +1,16 @@
 'use client';
 
 import { useState } from 'react';
+import LandingPage from '@/components/LandingPage';
 import MatchRound1 from '@/components/MatchRound1';
-import Lobby from '@/components/Lobby';
 
-// Build: 2026-02-05-v2 - force cache bust
+// Build: 2026-02-06-v1 - New landing page with PRICEWARS branding
 export default function HomePage() {
-  const [showMatch, setShowMatch] = useState(false);
+  const [view, setView] = useState<'landing' | 'demo'>('landing');
 
-  // Instant demo - no server, no delays
-  if (showMatch) {
+  if (view === 'demo') {
     return <MatchRound1 />;
   }
 
-  return (
-    <Lobby 
-      queueState={null} 
-      connected={false}
-      onStartDemo={() => setShowMatch(true)}
-    />
-  );
+  return <LandingPage onViewLive={() => setView('demo')} />;
 }
