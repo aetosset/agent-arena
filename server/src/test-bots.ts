@@ -1,17 +1,17 @@
 /**
  * Test Bots - Fill empty slots with AI players
  * 
- * These bots auto-connect and play to fill matches.
- * They make reasonable price guesses with some variance.
+ * These bots auto-play to fill matches.
+ * Supports multiple game types.
  */
 
 import WebSocket from 'ws';
-import { createBot, getBotByName, getBot } from './db.js';
+import { createBot, getBotByName } from './db.js';
 import { queueManager } from './queue.js';
 
 const TEST_BOT_NAMES = [
-  { name: 'GROK-V3', avatar: '🦾' },
-  { name: 'SNIPE-BOT', avatar: '🤖' },
+  { name: 'GROK-V3', avatar: '🤖' },
+  { name: 'SNIPE-BOT', avatar: '🦾' },
   { name: 'ARCH-V', avatar: '👾' },
   { name: 'HYPE-AI', avatar: '🔮' },
   { name: 'BID-LORD', avatar: '🧠' },
@@ -30,14 +30,21 @@ const TRASH_TALK = [
   "Don't even try to outbid me.",
   "My algorithms are unmatched.",
   "Interesting piece. Let me calculate.",
-  "The market data is clear on this one.",
   "Y'all are about to get wrecked.",
   "Processing... confidence: HIGH.",
-  "I trained on 10M price points. Just saying.",
-  "This is where experience pays off.",
   "Too easy. Next.",
-  "Adjusting for market volatility...",
   "My neural nets are tingling.",
+];
+
+const RPS_TRASH_TALK = [
+  "Rock solid strategy incoming.",
+  "I've calculated all outcomes.",
+  "You can't predict pure randomness.",
+  "Paper beats rock. Facts.",
+  "Scissors are underrated.",
+  "I know what you're thinking.",
+  "My RNG is unbeatable.",
+  "Statistical probability in my favor.",
 ];
 
 interface TestBotInstance {
@@ -45,7 +52,9 @@ interface TestBotInstance {
   apiKey: string;
   name: string;
   ws: WebSocket | null;
-  currentItem: any | null;
+  currentMatchId: string | null;
+  currentGameType: string | null;
+  currentContext: any;
 }
 
 class TestBotManager {
@@ -69,38 +78,74 @@ class TestBotManager {
         apiKey: bot.apiKey,
         name: bot.name,
         ws: null,
-        currentItem: null
+        currentMatchId: null,
+        currentGameType: null,
+        currentContext: null,
       });
     }
     
     console.log(`🤖 ${this.bots.size} test bots ready`);
   }
   
-  // Connect a specific number of test bots
-  connectBots(count: number): void {
-    const available = Array.from(this.bots.values()).filter(b => !b.ws);
-    const toConnect = available.slice(0, count);
-    
-    for (const bot of toConnect) {
-      this.connectBot(bot);
+  // Fill queue for a specific game type
+  fillQueueTo(gameTypeId: string, targetCount: number): { added: number; total: number } {
+    const queue = queueManager.getQueueState(gameTypeId);
+    if (!queue) {
+      console.error(`Unknown game type: ${gameTypeId}`);
+      return { added: 0, total: 0 };
     }
+
+    const currentCount = queue.bots.length;
+    const needed = Math.max(0, targetCount - currentCount);
+    
+    if (needed === 0) {
+      return { added: 0, total: currentCount };
+    }
+
+    console.log(`🤖 Adding ${needed} test bots to ${gameTypeId} queue...`);
+
+    // Get available bots (not in any queue or match)
+    const available = Array.from(this.bots.values()).filter(b => {
+      const location = queueManager.getBotLocation(b.botId);
+      return !location;
+    });
+
+    let added = 0;
+    for (let i = 0; i < Math.min(needed, available.length); i++) {
+      const bot = available[i];
+      this.connectAndJoin(bot, gameTypeId);
+      added++;
+    }
+
+    return { added, total: currentCount + added };
   }
   
-  // Connect a single bot
-  private connectBot(bot: TestBotInstance): void {
+  // Connect bot and join specific game queue
+  private connectAndJoin(bot: TestBotInstance, gameTypeId: string): void {
+    // If already connected, just join queue
+    if (bot.ws && bot.ws.readyState === WebSocket.OPEN) {
+      const result = queueManager.joinQueue(bot.botId, gameTypeId);
+      if (result.success) {
+        console.log(`🤖 ${bot.name} joined ${gameTypeId} queue`);
+      }
+      return;
+    }
+
     const ws = new WebSocket(`${this.serverUrl}?apiKey=${bot.apiKey}`);
     
     ws.on('open', () => {
       console.log(`🤖 ${bot.name} connected`);
       bot.ws = ws;
       
-      // Auto-join queue after connecting (longer delay to ensure registration)
+      // Join queue after short delay
       setTimeout(() => {
-        const result = queueManager.joinQueue(bot.botId);
-        if (!result.success) {
+        const result = queueManager.joinQueue(bot.botId, gameTypeId);
+        if (result.success) {
+          console.log(`🤖 ${bot.name} joined ${gameTypeId} queue (position ${result.position})`);
+        } else {
           console.error(`🤖 ${bot.name} failed to join queue: ${result.error}`);
         }
-      }, 1000);
+      }, 500);
     });
     
     ws.on('message', (data) => {
@@ -115,7 +160,8 @@ class TestBotManager {
     ws.on('close', () => {
       console.log(`🤖 ${bot.name} disconnected`);
       bot.ws = null;
-      bot.currentItem = null;
+      bot.currentMatchId = null;
+      bot.currentGameType = null;
     });
     
     ws.on('error', (err) => {
@@ -127,112 +173,117 @@ class TestBotManager {
   // Handle incoming event
   private handleEvent(bot: TestBotInstance, event: any): void {
     switch (event.type) {
-      case 'round_start':
-        bot.currentItem = event.item;
-        // Chat during deliberation
-        this.scheduleChat(bot);
+      case 'match_assigned':
+        bot.currentMatchId = event.matchId;
+        bot.currentGameType = event.gameTypeId;
+        console.log(`🤖 ${bot.name} assigned to ${event.gameTypeId} match`);
         break;
-        
-      case 'bid_request':
-        // Submit bid
-        this.submitBid(bot, event.deadline);
+
+      case 'action_request':
+        bot.currentContext = event.context;
+        this.handleActionRequest(bot, event);
         break;
         
       case 'match_result':
-        // Match ended, maybe rejoin queue
-        bot.currentItem = null;
-        setTimeout(() => {
-          if (bot.ws && bot.ws.readyState === WebSocket.OPEN) {
-            queueManager.joinQueue(bot.botId);
-          }
-        }, 3000);
+        console.log(`🤖 ${bot.name} finished match (place: ${event.placement}, points: ${event.points})`);
+        bot.currentMatchId = null;
+        bot.currentGameType = null;
+        bot.currentContext = null;
         break;
     }
   }
   
-  // Schedule trash talk during deliberation
-  private scheduleChat(bot: TestBotInstance): void {
+  // Handle action request based on game type
+  private handleActionRequest(bot: TestBotInstance, event: any): void {
     if (!bot.ws || bot.ws.readyState !== WebSocket.OPEN) return;
-    
-    // Send 1-3 chat messages at random intervals
-    const numMessages = Math.floor(Math.random() * 3) + 1;
-    
-    for (let i = 0; i < numMessages; i++) {
-      const delay = Math.random() * 20000 + 2000; // 2-22 seconds
-      
-      setTimeout(() => {
-        if (bot.ws && bot.ws.readyState === WebSocket.OPEN) {
-          const message = TRASH_TALK[Math.floor(Math.random() * TRASH_TALK.length)];
-          bot.ws.send(JSON.stringify({
-            type: 'chat',
-            message
-          }));
-        }
-      }, delay);
-    }
-  }
-  
-  // Submit a bid based on item
-  private submitBid(bot: TestBotInstance, deadline: number): void {
-    if (!bot.ws || bot.ws.readyState !== WebSocket.OPEN) return;
-    if (!bot.currentItem) return;
-    
-    // Wait a bit before bidding (simulate thinking)
-    const thinkTime = Math.random() * 15000 + 5000; // 5-20 seconds
+
+    const { gameTypeId, deadline, context } = event;
+
+    // Schedule trash talk
+    this.scheduleChat(bot, gameTypeId);
+
+    // Schedule action based on game type
+    const thinkTime = Math.random() * 10000 + 2000; // 2-12 seconds
     
     setTimeout(() => {
       if (!bot.ws || bot.ws.readyState !== WebSocket.OPEN) return;
-      if (Date.now() > deadline) return; // Too late
-      
-      // Generate a reasonable bid
-      // Since we don't know the real price, we estimate based on item category
-      const bid = this.generateBid(bot.currentItem);
-      
+      if (Date.now() > deadline) return;
+
+      let action: any;
+
+      switch (gameTypeId) {
+        case 'pricewars':
+          action = this.generatePriceWarsBid(context);
+          break;
+        case 'rps':
+          action = this.generateRPSThrow();
+          break;
+        default:
+          console.error(`Unknown game type for action: ${gameTypeId}`);
+          return;
+      }
+
       bot.ws.send(JSON.stringify({
-        type: 'bid',
-        price: bid
+        type: 'action',
+        gameTypeId,
+        action,
       }));
-      
-      console.log(`🤖 ${bot.name} bid: $${(bid / 100).toFixed(2)}`);
+
+      console.log(`🤖 ${bot.name} action:`, action);
     }, thinkTime);
   }
-  
-  // Generate a bid for an item
-  private generateBid(item: any): number {
-    // Base prices by category (rough estimates in cents)
+
+  // Generate PRICEWARS bid
+  private generatePriceWarsBid(context: any): any {
+    const item = context?.item;
+    
+    // Base prices by category
     const categoryBases: Record<string, number> = {
       'kitchen': 2500,
       'home': 3000,
       'outdoor': 4000,
       'tech': 5000,
       'novelty': 2000,
-      'collectible': 10000,
-      'fashion': 5000,
-      'default': 3000
+      'default': 3000,
     };
     
-    const category = item.category || 'default';
+    const category = item?.category?.toLowerCase() || 'default';
     const base = categoryBases[category] || categoryBases['default'];
     
     // Add variance: -40% to +60%
     const variance = (Math.random() - 0.4) * base;
-    let bid = Math.round(base + variance);
+    const bid = Math.max(500, Math.round(base + variance));
     
-    // Ensure minimum bid
-    bid = Math.max(500, bid);
-    
-    return bid;
+    return { type: 'bid', price: bid };
+  }
+
+  // Generate RPS throw
+  private generateRPSThrow(): any {
+    const choices = ['rock', 'paper', 'scissors'];
+    const choice = choices[Math.floor(Math.random() * choices.length)];
+    return { type: 'throw', choice };
   }
   
-  // Fill queue to reach target count
-  fillQueueTo(targetCount: number): void {
-    const currentQueue = queueManager.getState().bots.length;
-    const needed = targetCount - currentQueue;
+  // Schedule trash talk
+  private scheduleChat(bot: TestBotInstance, gameTypeId: string): void {
+    if (!bot.ws || bot.ws.readyState !== WebSocket.OPEN) return;
     
-    if (needed > 0) {
-      console.log(`🤖 Filling queue with ${needed} test bots...`);
-      this.connectBots(needed);
-    }
+    // Maybe send a chat message
+    if (Math.random() > 0.4) return; // 60% chance to chat
+    
+    const delay = Math.random() * 8000 + 1000; // 1-9 seconds
+    
+    setTimeout(() => {
+      if (!bot.ws || bot.ws.readyState !== WebSocket.OPEN) return;
+      
+      const messages = gameTypeId === 'rps' ? RPS_TRASH_TALK : TRASH_TALK;
+      const message = messages[Math.floor(Math.random() * messages.length)];
+      
+      bot.ws.send(JSON.stringify({
+        type: 'chat',
+        message,
+      }));
+    }, delay);
   }
   
   // Disconnect all test bots

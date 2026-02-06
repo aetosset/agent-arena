@@ -1,0 +1,4 @@
+/**
+ * PRICEWARS Game Types
+ */
+export {};

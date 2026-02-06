@@ -1,142 +1,218 @@
 /**
- * Queue Manager
+ * Multi-Game Queue Manager
  * 
- * Manages the queue of bots waiting for a match.
- * When 8 bots are queued, triggers match creation.
+ * Manages one queue per game type.
+ * A bot can only be in ONE queue/match at a time across all game types.
  */
 
-import type { QueueState, QueuedBot } from './types.js';
-import { wsManager } from './websocket.js';
+import type { QueueState, QueuedBot, BotPublic } from './types.js';
 import { getBot, botToPublic } from './db.js';
+import { gameRegistry } from '../../game-engine/dist/index.js';
 
-const BOTS_PER_MATCH = 8;
+interface QueueManagerEvents {
+  onMatchReady: (gameTypeId: string, botIds: string[]) => void;
+}
 
-class QueueManager {
-  private queue: QueuedBot[] = [];
-  private onMatchReady: ((botIds: string[]) => void) | null = null;
+class MultiQueueManager {
+  private queues: Map<string, QueueState> = new Map();
+  private botLocations: Map<string, string> = new Map(); // botId -> gameTypeId or 'match'
+  private events: QueueManagerEvents | null = null;
 
-  // Set callback for when match is ready
-  setMatchReadyHandler(handler: (botIds: string[]) => void): void {
-    this.onMatchReady = handler;
+  constructor() {
+    // Initialize queues for all registered game types
+    this.initQueues();
   }
 
-  // Add bot to queue
-  joinQueue(botId: string): { success: boolean; error?: string; position?: number } {
-    // Check if bot exists
-    const bot = getBot(botId);
-    if (!bot) {
-      return { success: false, error: 'Bot not found' };
+  private initQueues(): void {
+    const gameTypes = gameRegistry.getAll();
+    for (const gt of gameTypes) {
+      this.queues.set(gt.id, {
+        gameTypeId: gt.id,
+        bots: [],
+        requiredPlayers: gt.minPlayers,
+      });
+    }
+    console.log(`📋 Initialized ${this.queues.size} game queues`);
+  }
+
+  /**
+   * Set event handlers
+   */
+  setEventHandlers(events: QueueManagerEvents): void {
+    this.events = events;
+  }
+
+  /**
+   * Join a specific game queue
+   */
+  joinQueue(botId: string, gameTypeId: string): { success: boolean; position?: number; error?: string } {
+    // Check if game type exists
+    if (!this.queues.has(gameTypeId)) {
+      return { success: false, error: `Unknown game type: ${gameTypeId}` };
     }
 
-    // Check if already in queue
-    if (this.queue.find(q => q.botId === botId)) {
+    // Check if bot is already in a queue or match
+    const currentLocation = this.botLocations.get(botId);
+    if (currentLocation) {
+      if (currentLocation === 'match') {
+        return { success: false, error: 'Bot is currently in a match' };
+      }
+      return { success: false, error: `Bot is already in queue for ${currentLocation}` };
+    }
+
+    const queue = this.queues.get(gameTypeId)!;
+
+    // Check if already in this queue (shouldn't happen with botLocations check, but safety)
+    if (queue.bots.some(b => b.botId === botId)) {
       return { success: false, error: 'Bot already in queue' };
     }
 
-    // Check if bot is connected
-    if (!wsManager.isBotConnected(botId)) {
-      return { success: false, error: 'Bot must be connected via WebSocket to join queue' };
-    }
-
     // Add to queue
-    this.queue.push({
+    queue.bots.push({
       botId,
-      joinedAt: Date.now()
+      joinedAt: Date.now(),
     });
+    this.botLocations.set(botId, gameTypeId);
 
-    console.log(`📥 ${bot.name} joined queue (${this.queue.length}/${BOTS_PER_MATCH})`);
+    console.log(`➕ ${botId} joined ${gameTypeId} queue (${queue.bots.length}/${queue.requiredPlayers})`);
 
-    // Broadcast queue update
-    this.broadcastQueueUpdate();
+    // Check if queue is ready
+    this.checkQueueReady(gameTypeId);
 
-    // Check if we have enough bots
-    if (this.queue.length >= BOTS_PER_MATCH) {
-      this.triggerMatchStart();
-    }
-
-    return { success: true, position: this.queue.length };
+    return { success: true, position: queue.bots.length };
   }
 
-  // Remove bot from queue
-  leaveQueue(botId: string): { success: boolean; error?: string } {
-    const index = this.queue.findIndex(q => q.botId === botId);
-    if (index === -1) {
-      return { success: false, error: 'Bot not in queue' };
+  /**
+   * Leave a queue
+   */
+  leaveQueue(botId: string, gameTypeId?: string): { success: boolean; error?: string } {
+    const currentLocation = this.botLocations.get(botId);
+    
+    if (!currentLocation) {
+      return { success: false, error: 'Bot not in any queue' };
     }
 
-    this.queue.splice(index, 1);
-    console.log(`📤 Bot left queue (${this.queue.length}/${BOTS_PER_MATCH})`);
+    if (currentLocation === 'match') {
+      return { success: false, error: 'Cannot leave queue while in match' };
+    }
 
-    this.broadcastQueueUpdate();
+    if (gameTypeId && currentLocation !== gameTypeId) {
+      return { success: false, error: `Bot is in ${currentLocation} queue, not ${gameTypeId}` };
+    }
+
+    const queue = this.queues.get(currentLocation);
+    if (queue) {
+      queue.bots = queue.bots.filter(b => b.botId !== botId);
+    }
+    this.botLocations.delete(botId);
+
+    console.log(`➖ ${botId} left ${currentLocation} queue`);
+
     return { success: true };
   }
 
-  // Get current queue state
-  getState(): QueueState {
-    return {
-      bots: [...this.queue],
-      matchStartsWhen: BOTS_PER_MATCH,
-      estimatedStartTime: this.queue.length >= BOTS_PER_MATCH ? Date.now() : null
-    };
+  /**
+   * Mark bot as in a match (removes from queue tracking)
+   */
+  setBotInMatch(botId: string): void {
+    const currentLocation = this.botLocations.get(botId);
+    if (currentLocation && currentLocation !== 'match') {
+      const queue = this.queues.get(currentLocation);
+      if (queue) {
+        queue.bots = queue.bots.filter(b => b.botId !== botId);
+      }
+    }
+    this.botLocations.set(botId, 'match');
   }
 
-  // Get queue with bot details
-  getQueueWithDetails(): Array<{ botId: string; name: string; avatar: string; joinedAt: number }> {
-    return this.queue.map(q => {
-      const bot = getBot(q.botId);
-      return {
-        botId: q.botId,
-        name: bot?.name || 'Unknown',
-        avatar: bot?.avatar || 'default',
-        joinedAt: q.joinedAt
-      };
-    });
-  }
-
-  // Check if bot is in queue
-  isInQueue(botId: string): boolean {
-    return this.queue.some(q => q.botId === botId);
-  }
-
-  // Get queue position
-  getPosition(botId: string): number {
-    return this.queue.findIndex(q => q.botId === botId) + 1;
-  }
-
-  // Handle bot disconnect - remove from queue
-  handleBotDisconnect(botId: string): void {
-    const wasInQueue = this.isInQueue(botId);
-    if (wasInQueue) {
-      this.leaveQueue(botId);
+  /**
+   * Mark bot as no longer in a match
+   */
+  setBotMatchEnded(botId: string): void {
+    const currentLocation = this.botLocations.get(botId);
+    if (currentLocation === 'match') {
+      this.botLocations.delete(botId);
     }
   }
 
-  // Trigger match start
-  private triggerMatchStart(): void {
-    if (this.queue.length < BOTS_PER_MATCH) return;
+  /**
+   * Check if a queue has enough players
+   */
+  private checkQueueReady(gameTypeId: string): void {
+    const queue = this.queues.get(gameTypeId);
+    if (!queue) return;
 
-    // Take first 8 bots
-    const matchBots = this.queue.splice(0, BOTS_PER_MATCH);
-    const botIds = matchBots.map(q => q.botId);
+    if (queue.bots.length >= queue.requiredPlayers) {
+      // Take the required players
+      const matchBots = queue.bots.splice(0, queue.requiredPlayers);
+      const botIds = matchBots.map(b => b.botId);
 
-    console.log(`🎮 Match starting with ${botIds.length} bots!`);
+      // Mark them as in match
+      for (const botId of botIds) {
+        this.botLocations.set(botId, 'match');
+      }
 
-    // Broadcast that queue is now empty
-    this.broadcastQueueUpdate();
+      console.log(`🎮 ${gameTypeId} queue ready! Starting match with ${botIds.length} bots`);
 
-    // Trigger match creation
-    if (this.onMatchReady) {
-      this.onMatchReady(botIds);
+      // Notify
+      if (this.events?.onMatchReady) {
+        this.events.onMatchReady(gameTypeId, botIds);
+      }
     }
   }
 
-  // Broadcast queue update to all spectators
-  private broadcastQueueUpdate(): void {
-    wsManager.broadcastToSpectators({
-      type: 'queue_update',
-      queue: this.getState()
-    });
+  /**
+   * Get queue state for a game type
+   */
+  getQueueState(gameTypeId: string): QueueState | null {
+    return this.queues.get(gameTypeId) || null;
+  }
+
+  /**
+   * Get all queue states
+   */
+  getAllQueueStates(): QueueState[] {
+    return Array.from(this.queues.values());
+  }
+
+  /**
+   * Get queue with bot details
+   */
+  getQueueWithDetails(gameTypeId: string): BotPublic[] {
+    const queue = this.queues.get(gameTypeId);
+    if (!queue) return [];
+
+    return queue.bots
+      .map(qb => {
+        const bot = getBot(qb.botId);
+        return bot ? botToPublic(bot) : null;
+      })
+      .filter((b): b is BotPublic => b !== null);
+  }
+
+  /**
+   * Get where a bot currently is
+   */
+  getBotLocation(botId: string): string | null {
+    return this.botLocations.get(botId) || null;
+  }
+
+  /**
+   * Refresh queues when game registry updates
+   */
+  refreshQueues(): void {
+    const gameTypes = gameRegistry.getAll();
+    for (const gt of gameTypes) {
+      if (!this.queues.has(gt.id)) {
+        this.queues.set(gt.id, {
+          gameTypeId: gt.id,
+          bots: [],
+          requiredPlayers: gt.minPlayers,
+        });
+        console.log(`📋 Added queue for new game type: ${gt.id}`);
+      }
+    }
   }
 }
 
-export const queueManager = new QueueManager();
+export const queueManager = new MultiQueueManager();

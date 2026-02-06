@@ -198,6 +198,12 @@ class WebSocketManager {
       conn.currentMatchId = matchId;
     }
   }
+
+  // Get bot's current match
+  getBotMatch(botId: string): string | null {
+    const conn = this.bots.get(botId);
+    return conn?.currentMatchId || null;
+  }
 }
 
 export const wsManager = new WebSocketManager();

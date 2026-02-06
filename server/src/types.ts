@@ -1,30 +1,29 @@
 /**
- * Server Types for Agent Arena
+ * Server Types - Multi-Game Platform
  */
 
-// ============ GAME ITEM ============
-export interface GameItem {
-  id: string;
-  title: string;
-  price: number;           // Actual price in cents
-  proofUrl: string;        // URL proving the price
-  imageUrls?: string[];    // Multiple product images
-  category?: string;       // e.g., "electronics", "kitchen"
-  priceFetchedAt?: number; // Timestamp when price was verified
-  source?: string;         // Where price came from
-}
+// ============ BOT / PLAYER ============
 
-// ============ BOT ============
 export interface Bot {
   id: string;
   name: string;
-  avatar: string;        // avatar identifier (e.g., "robot-1", "alien-2")
-  apiKey: string;        // for bot authentication
+  avatar: string;
+  apiKey: string;
   createdAt: number;
-  // Stats
+  
+  // Platform-wide stats
+  totalPoints: number;
+  totalMatches: number;
+  totalWins: number;
+  
+  // Per-game stats
+  gameStats: { [gameTypeId: string]: GameStats };
+}
+
+export interface GameStats {
   matchesPlayed: number;
   wins: number;
-  totalEarnings: number; // cents (for future)
+  points: number;
   avgPlacement: number;
 }
 
@@ -32,60 +31,41 @@ export interface BotPublic {
   id: string;
   name: string;
   avatar: string;
-  matchesPlayed: number;
-  wins: number;
+  totalPoints: number;
+  totalMatches: number;
+  totalWins: number;
   winRate: number;
-  avgPlacement: number;
 }
 
 // ============ MATCH ============
+
 export interface Match {
   id: string;
+  gameTypeId: string;           // 'pricewars' | 'rps'
   status: 'queued' | 'live' | 'finished';
-  bots: string[];        // bot IDs (8)
-  rounds: MatchRound[];
-  winner: string | null; // bot ID
+  botIds: string[];
+  winner: string | null;        // bot ID
+  placements: MatchPlacement[];
+  prizePool: number;
   startedAt: number | null;
   endedAt: number | null;
   createdAt: number;
+  // Game-specific data stored separately or inline
+  gameData?: any;
 }
 
-export interface MatchRound {
-  roundNumber: number;
-  item: MatchItem;
-  bids: RoundBid[];
-  chat: RoundChat[];
-  eliminated: string[];  // bot IDs
-  startedAt: number;
-  endedAt: number;
-}
-
-export interface MatchItem {
-  id: string;
-  title: string;
-  price: number;         // actual price in cents
-  imageUrls: string[];
-  proofUrl: string;
-}
-
-export interface RoundBid {
+export interface MatchPlacement {
   botId: string;
-  price: number;         // guess in cents
-  timestamp: number;
-  distance?: number;     // calculated after reveal
-}
-
-export interface RoundChat {
-  botId: string;
-  message: string;
-  timestamp: number;
+  place: number;
+  points: number;
 }
 
 // ============ QUEUE ============
+
 export interface QueueState {
+  gameTypeId: string;
   bots: QueuedBot[];
-  matchStartsWhen: number; // 8
-  estimatedStartTime: number | null;
+  requiredPlayers: number;
 }
 
 export interface QueuedBot {
@@ -94,31 +74,35 @@ export interface QueuedBot {
 }
 
 // ============ WEBSOCKET EVENTS ============
+
+// Events sent to all clients (spectators + bots)
 export type ServerEvent =
-  | { type: 'queue_update'; queue: QueueState }
-  | { type: 'match_starting'; matchId: string; bots: BotPublic[]; startsIn: number }
-  | { type: 'round_start'; matchId: string; round: number; item: Omit<MatchItem, 'price'>; endsAt: number }
-  | { type: 'bot_chat'; matchId: string; botId: string; botName: string; message: string }
-  | { type: 'bid_locked'; matchId: string; botId: string } // bid submitted but not revealed
-  | { type: 'bids_reveal'; matchId: string; bids: Array<{ botId: string; botName: string; price: number }> }
-  | { type: 'price_reveal'; matchId: string; actualPrice: number; item: MatchItem }
-  | { type: 'elimination'; matchId: string; eliminated: Array<{ botId: string; botName: string; distance: number }> }
-  | { type: 'round_end'; matchId: string; round: number; surviving: string[] }
-  | { type: 'match_end'; matchId: string; winner: BotPublic; placements: Array<{ botId: string; botName: string; placement: number }> };
+  // Platform events
+  | { type: 'queue_update'; gameTypeId: string; count: number; required: number }
+  | { type: 'match_starting'; matchId: string; gameTypeId: string; bots: BotPublic[]; startsIn: number }
+  | { type: 'match_ended'; matchId: string; gameTypeId: string; winner: BotPublic; placements: MatchPlacement[] }
+  | { type: 'chat_message'; matchId: string; botId: string; botName: string; message: string }
+  // Game-specific events (wrapped)
+  | { type: 'game_event'; matchId: string; gameTypeId: string; event: string; data: any }
+  // Connection
+  | { type: 'connected'; sessionId: string }
+  | { type: 'error'; message: string };
 
+// Events sent specifically to bots
 export type BotEvent =
-  | { type: 'match_assigned'; matchId: string; opponents: BotPublic[] }
-  | { type: 'round_start'; round: number; item: Omit<MatchItem, 'price'>; endsAt: number }
-  | { type: 'opponent_chat'; botId: string; botName: string; message: string }
-  | { type: 'bid_request'; deadline: number } // server asking for bid
-  | { type: 'round_result'; actualPrice: number; yourBid: number; yourDistance: number; eliminated: boolean }
-  | { type: 'match_result'; placement: number; winner: string };
+  | { type: 'match_assigned'; matchId: string; gameTypeId: string; opponents: BotPublic[] }
+  | { type: 'action_request'; matchId: string; gameTypeId: string; deadline: number; context: any }
+  | { type: 'action_result'; success: boolean; error?: string }
+  | { type: 'round_result'; matchId: string; data: any }
+  | { type: 'match_result'; matchId: string; placement: number; points: number; won: boolean };
 
+// Commands from bots
 export type BotCommand =
   | { type: 'chat'; message: string }
-  | { type: 'bid'; price: number };
+  | { type: 'action'; gameTypeId: string; action: any };  // Game-specific action
 
 // ============ API RESPONSES ============
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -128,4 +112,19 @@ export interface ApiResponse<T> {
 export interface LeaderboardEntry {
   rank: number;
   bot: BotPublic;
+  gameTypeId?: string;  // If per-game leaderboard
+  points: number;
+}
+
+export interface GameTypeInfo {
+  id: string;
+  name: string;
+  description: string;
+  minPlayers: number;
+  maxPlayers: number;
+  hasPrizePool: boolean;
+  gridIconSize: 1 | 4 | 9;
+  showMovement: boolean;
+  queueCount: number;
+  liveMatches: number;
 }

@@ -1,19 +1,24 @@
 /**
- * Agent Arena Game Server
+ * Multi-Game Platform Server
  * 
- * REST API + WebSocket server for running the game.
+ * REST API + WebSocket server for all games.
  */
 
 import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
+import { mkdirSync } from 'fs';
+
+// Import game engine (registers games on import)
+import '../../game-engine/dist/index.js';
+import { gameRegistry } from '../../game-engine/dist/index.js';
+
 import { initDb, closeDb } from './db.js';
 import { wsManager } from './websocket.js';
 import { queueManager } from './queue.js';
 import { orchestrator } from './orchestrator.js';
 import { testBotManager } from './test-bots.js';
 import routes from './routes.js';
-import { mkdirSync } from 'fs';
 
 const PORT = process.env.PORT || 3001;
 
@@ -36,31 +41,34 @@ app.use('/api', routes);
 
 // Health check
 app.get('/health', (req, res) => {
+  const games = gameRegistry.getAll().map(g => ({
+    id: g.id,
+    name: g.name,
+    queueCount: queueManager.getQueueState(g.id)?.bots.length || 0,
+    liveMatches: orchestrator.getMatchCount(g.id),
+  }));
+
   res.json({
     status: 'ok',
     timestamp: Date.now(),
-    matchActive: orchestrator.isMatchActive(),
-    queueSize: queueManager.getState().bots.length,
-    connections: wsManager.getStats()
+    games,
+    totalLiveMatches: orchestrator.getActiveMatches().length,
+    connections: wsManager.getStats(),
   });
 });
 
 // Admin endpoint to fill queue with test bots
-app.post('/api/admin/fill-queue', (req, res) => {
-  const target = req.body.target || 8;
-  testBotManager.fillQueueTo(target);
-  res.json({ success: true, message: `Filling queue to ${target} bots` });
-});
-
-// Admin endpoint to start match with test bots
-app.post('/api/admin/start-demo', async (req, res) => {
-  if (orchestrator.isMatchActive()) {
-    return res.json({ success: false, error: 'Match already in progress' });
-  }
+app.post('/api/admin/fill-queue/:gameType', (req, res) => {
+  const { gameType } = req.params;
+  const gameTypeInfo = gameRegistry.get(gameType);
   
-  // Fill queue and start
-  testBotManager.fillQueueTo(8);
-  res.json({ success: true, message: 'Starting demo match with test bots' });
+  if (!gameTypeInfo) {
+    return res.status(404).json({ success: false, error: 'Unknown game type' });
+  }
+
+  const target = req.body.target || gameTypeInfo.minPlayers;
+  const result = testBotManager.fillQueueTo(gameType, target);
+  res.json({ success: true, message: `Filling ${gameType} queue to ${target} bots`, ...result });
 });
 
 // Create HTTP server
@@ -68,11 +76,6 @@ const server = createServer(app);
 
 // Initialize WebSocket
 wsManager.init(server);
-
-// Set up queue -> match trigger
-queueManager.setMatchReadyHandler((botIds) => {
-  orchestrator.startMatch(botIds);
-});
 
 // Graceful shutdown
 process.on('SIGINT', () => {
@@ -84,32 +87,44 @@ process.on('SIGINT', () => {
 
 // Start server
 server.listen(Number(PORT), '0.0.0.0', () => {
+  const games = gameRegistry.getAll();
+  
   console.log(`
-🏟️  Agent Arena Game Server
-════════════════════════════════════
+🏟️  Multi-Game Platform Server
+════════════════════════════════════════════════════════════════
 REST API:    http://localhost:${PORT}/api
 WebSocket:   ws://localhost:${PORT}/ws
 Health:      http://localhost:${PORT}/health
 
-Endpoints:
-  POST /api/bots           - Register new bot
-  GET  /api/bots           - Leaderboard
-  GET  /api/bots/:id       - Bot profile
-  GET  /api/queue          - Queue status
-  POST /api/queue/join     - Join queue (needs X-API-Key)
-  POST /api/queue/leave    - Leave queue
-  GET  /api/matches        - Recent matches
-  GET  /api/matches/live   - Current match
-  GET  /api/matches/:id    - Match replay data
+Registered Games:
+${games.map(g => `  • ${g.name} (${g.id}) - ${g.minPlayers} players`).join('\n')}
+
+API Endpoints:
+  GET  /api/games                    - List game types
+  GET  /api/games/:id                - Game type info
   
+  POST /api/bots                     - Register bot
+  GET  /api/bots/:id                 - Bot profile
+  GET  /api/leaderboard              - Global leaderboard
+  GET  /api/leaderboard?gameType=x   - Per-game leaderboard
+  
+  GET  /api/queue/:gameType          - Queue status
+  GET  /api/queues                   - All queue statuses
+  POST /api/queue/:gameType/join     - Join queue (X-API-Key)
+  POST /api/queue/:gameType/leave    - Leave queue
+  
+  GET  /api/matches                  - Match history
+  GET  /api/matches/live             - Live matches
+  GET  /api/matches/:id              - Match details
+
 Admin:
-  POST /api/admin/fill-queue  - Fill queue with test bots
-  POST /api/admin/start-demo  - Start demo match
+  POST /api/admin/start-demo/:gameType  - Start demo match
+  POST /api/admin/fill-queue/:gameType  - Fill queue with test bots
 
 WebSocket:
-  ?apiKey=xxx              - Connect as bot
-  (no params)              - Connect as spectator
+  ?apiKey=xxx   - Connect as bot
+  (no params)   - Connect as spectator
 
-Test bots initialized. Ready for matches!
+Ready for matches! 🎮
   `);
 });

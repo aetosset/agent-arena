@@ -1,465 +1,361 @@
 /**
- * Match Orchestrator
+ * Multi-Game Match Orchestrator
  * 
- * Runs the game loop for a match:
- * 1. Show item (price hidden)
- * 2. Deliberation phase (bots chat)
- * 3. Bid collection
- * 4. Price reveal + elimination
- * 5. Repeat until 1 bot left
+ * Manages active matches for all game types.
+ * Uses the unified game engine interface.
  */
 
-import type { Match, MatchRound, MatchItem, RoundBid, RoundChat, BotPublic, BotCommand } from './types.js';
+import type { Match, BotPublic, BotCommand, MatchPlacement } from './types.js';
 import { wsManager } from './websocket.js';
-import { createMatch, updateMatch, getBot, botToPublic, updateBotStats } from './db.js';
-import { REAL_ITEMS } from './real-items.js';
+import { createMatch, updateMatch, finishMatch, getBot, botToPublic } from './db.js';
+import { queueManager } from './queue.js';
+import { 
+  gameRegistry, 
+  type GameMatch, 
+  type Player, 
+  type MatchEvent,
+  SAMPLE_ITEMS 
+} from '../../game-engine/dist/index.js';
 
-// Timing constants (ms)
-const ROUND_COUNTDOWN = 5000;        // 5s before round starts
-const DELIBERATION_TIME = 30000;     // 30s for chat + bidding
-const BID_LOCK_TIME = 5000;          // 5s dramatic bid reveal
-const REVEAL_TIME = 5000;            // 5s to show results
-const TRANSITION_TIME = 3000;        // 3s between rounds
-
-const ELIMINATE_PER_ROUND = 2;
-const ROUNDS_NEEDED = 4;             // 8 -> 6 -> 4 -> 2 -> 1
+// Timing constants
+const MATCH_COUNTDOWN = 3000;  // 3s before match starts
 
 interface ActiveMatch {
-  match: Match;
+  dbMatch: Match;
+  gameMatch: GameMatch;
   bots: Map<string, BotPublic>;
-  currentRound: number;
-  currentItem: MatchItem | null;
-  bids: Map<string, RoundBid>;
-  chat: RoundChat[];
-  roundStartedAt: number;
-  activeBotIds: string[];
-  items: MatchItem[];
 }
 
-class MatchOrchestrator {
-  private activeMatch: ActiveMatch | null = null;
+class MultiMatchOrchestrator {
+  private activeMatches: Map<string, ActiveMatch> = new Map(); // matchId -> ActiveMatch
 
   constructor() {
+    // Set up queue event handler
+    queueManager.setEventHandlers({
+      onMatchReady: (gameTypeId, botIds) => this.startMatch(gameTypeId, botIds),
+    });
+
     // Listen for bot commands
     wsManager.setBotCommandHandler((botId, command) => {
       this.handleBotCommand(botId, command);
     });
   }
 
-  // Start a new match with given bots
-  async startMatch(botIds: string[]): Promise<void> {
-    if (this.activeMatch) {
-      console.error('Match already in progress!');
+  /**
+   * Start a new match
+   */
+  async startMatch(gameTypeId: string, botIds: string[]): Promise<void> {
+    const gameType = gameRegistry.get(gameTypeId);
+    if (!gameType) {
+      console.error(`Unknown game type: ${gameTypeId}`);
       return;
     }
-    
-    try {
-
-    // Create match in DB
-    const match = createMatch(botIds);
-    match.status = 'live';
-    match.startedAt = Date.now();
-    updateMatch(match);
-
-    // Load bots
-    const bots = new Map<string, BotPublic>();
-    for (const botId of botIds) {
-      const bot = getBot(botId);
-      if (bot) {
-        bots.set(botId, botToPublic(bot));
-        wsManager.setBotMatch(botId, match.id);
-      }
-    }
-
-    // Get items for this match
-    const items = this.selectItems(ROUNDS_NEEDED);
-
-    this.activeMatch = {
-      match,
-      bots,
-      currentRound: 0,
-      currentItem: null,
-      bids: new Map(),
-      chat: [],
-      roundStartedAt: 0,
-      activeBotIds: [...botIds],
-      items
-    };
-
-    console.log(`🏟️ Match ${match.id} starting with ${botIds.length} bots`);
-
-    // Broadcast match starting
-    wsManager.broadcastAll({
-      type: 'match_starting',
-      matchId: match.id,
-      bots: Array.from(bots.values()),
-      startsIn: ROUND_COUNTDOWN
-    }, botIds);
-
-    // Notify bots
-    for (const botId of botIds) {
-      wsManager.sendToBot(botId, {
-        type: 'match_assigned',
-        matchId: match.id,
-        opponents: Array.from(bots.values()).filter(b => b.id !== botId)
-      });
-    }
-
-    // Start first round after countdown
-    await this.delay(ROUND_COUNTDOWN);
-    await this.runRound();
-    } catch (error) {
-      console.error('❌ Match error:', error);
-      this.activeMatch = null;
-    }
-  }
-
-  // Run a single round
-  private async runRound(): Promise<void> {
-    if (!this.activeMatch) return;
 
     try {
-    const am = this.activeMatch;
-    am.currentRound++;
-    am.bids = new Map();
-    am.chat = [];
-
-    // Select item for this round
-    const item = am.items[am.currentRound - 1];
-    am.currentItem = item;
-    am.roundStartedAt = Date.now();
-
-    console.log(`📦 Round ${am.currentRound}: ${item.title} ($${(item.price / 100).toFixed(2)})`);
-
-    // Broadcast round start (price hidden)
-    const itemWithoutPrice = { ...item, price: 0 };
-    wsManager.broadcastAll({
-      type: 'round_start',
-      matchId: am.match.id,
-      round: am.currentRound,
-      item: itemWithoutPrice,
-      endsAt: Date.now() + DELIBERATION_TIME
-    }, am.activeBotIds);
-
-    // Send to bots
-    for (const botId of am.activeBotIds) {
-      wsManager.sendToBot(botId, {
-        type: 'round_start',
-        round: am.currentRound,
-        item: itemWithoutPrice,
-        endsAt: Date.now() + DELIBERATION_TIME
-      });
-    }
-
-    // Request bids from bots
-    for (const botId of am.activeBotIds) {
-      wsManager.sendToBot(botId, {
-        type: 'bid_request',
-        deadline: Date.now() + DELIBERATION_TIME
-      });
-    }
-
-    // Wait for deliberation
-    await this.delay(DELIBERATION_TIME);
-
-    // Lock bids and reveal
-    await this.revealBids();
-
-    // Check if match is over
-    if (am.activeBotIds.length <= 1) {
-      await this.endMatch();
-    } else if (am.currentRound < ROUNDS_NEEDED) {
-      // Transition to next round
-      await this.delay(TRANSITION_TIME);
-      await this.runRound();
-    } else {
-      // All rounds complete - whoever is left wins
-      await this.endMatch();
-    }
-    } catch (error) {
-      console.error('❌ Round error:', error);
-    }
-  }
-
-  // Handle bot command (chat or bid)
-  private handleBotCommand(botId: string, command: BotCommand): void {
-    if (!this.activeMatch) return;
-    if (!this.activeMatch.activeBotIds.includes(botId)) return;
-
-    const am = this.activeMatch;
-    const bot = am.bots.get(botId);
-    if (!bot) return;
-
-    if (command.type === 'chat') {
-      const chatMsg: RoundChat = {
-        botId,
-        message: command.message.slice(0, 200),
-        timestamp: Date.now()
-      };
-      am.chat.push(chatMsg);
-
-      // Broadcast to spectators
-      wsManager.broadcastAll({
-        type: 'bot_chat',
-        matchId: am.match.id,
-        botId,
-        botName: bot.name,
-        message: chatMsg.message
-      }, am.activeBotIds);
-
-      // Send to other bots
-      for (const otherId of am.activeBotIds) {
-        if (otherId !== botId) {
-          wsManager.sendToBot(otherId, {
-            type: 'opponent_chat',
-            botId,
-            botName: bot.name,
-            message: chatMsg.message
+      // Load bots
+      const bots = new Map<string, BotPublic>();
+      const players: Player[] = [];
+      
+      for (const botId of botIds) {
+        const bot = getBot(botId);
+        if (bot) {
+          const botPublic = botToPublic(bot);
+          bots.set(botId, botPublic);
+          players.push({
+            id: bot.id,
+            name: bot.name,
+            avatar: bot.avatar,
+            totalPoints: bot.totalPoints,
+            totalMatches: bot.totalMatches,
+            totalWins: bot.totalWins,
           });
         }
       }
-    } else if (command.type === 'bid') {
-      am.bids.set(botId, {
-        botId,
-        price: Math.round(command.price),
-        timestamp: Date.now()
-      });
 
-      // Broadcast that bid was locked (not revealed)
+      // Determine prize pool
+      const prizePool = gameType.hasPrizePool ? (gameType.defaultPrizePool ?? 100) : 0;
+
+      // Create match in DB
+      const dbMatch = createMatch(gameTypeId, botIds, prizePool);
+      dbMatch.status = 'live';
+      dbMatch.startedAt = Date.now();
+      updateMatch(dbMatch);
+
+      // Create game match instance
+      const gameMatch = gameRegistry.createMatch(gameTypeId, { players, prizePool });
+
+      // Store active match
+      const activeMatch: ActiveMatch = {
+        dbMatch,
+        gameMatch,
+        bots,
+      };
+      this.activeMatches.set(dbMatch.id, activeMatch);
+
+      // Subscribe to game events
+      gameMatch.on((event) => this.handleGameEvent(dbMatch.id, event));
+
+      console.log(`🏟️ ${gameType.name} match ${dbMatch.id} starting with ${botIds.length} players`);
+
+      // Notify all spectators
       wsManager.broadcastToSpectators({
-        type: 'bid_locked',
-        matchId: am.match.id,
-        botId
+        type: 'match_starting',
+        matchId: dbMatch.id,
+        gameTypeId,
+        bots: Array.from(bots.values()),
+        startsIn: MATCH_COUNTDOWN,
       });
 
-      console.log(`💰 ${bot.name} bid: $${(command.price / 100).toFixed(2)}`);
+      // Notify bots
+      for (const botId of botIds) {
+        wsManager.setBotMatch(botId, dbMatch.id);
+        wsManager.sendToBot(botId, {
+          type: 'match_assigned',
+          matchId: dbMatch.id,
+          gameTypeId,
+          opponents: Array.from(bots.values()).filter(b => b.id !== botId),
+        });
+      }
+
+      // Start after countdown
+      await this.delay(MATCH_COUNTDOWN);
+      gameMatch.start();
+
+    } catch (error) {
+      console.error('❌ Match start error:', error);
     }
   }
 
-  // Reveal bids and eliminate
-  private async revealBids(): Promise<void> {
-    if (!this.activeMatch) return;
+  /**
+   * Handle events from game engine
+   */
+  private handleGameEvent(matchId: string, event: MatchEvent): void {
+    const active = this.activeMatches.get(matchId);
+    if (!active) return;
 
-    const am = this.activeMatch;
-    const item = am.currentItem!;
+    const { dbMatch, bots } = active;
+    const botIds = Array.from(bots.keys());
 
-    // Build bids array with distances
-    const bidsArray: RoundBid[] = am.activeBotIds.map(botId => {
-      const bid = am.bids.get(botId);
-      if (bid) {
-        return { ...bid, distance: Math.abs(bid.price - item.price) };
-      }
-      // No bid = max distance
-      return { botId, price: -1, timestamp: 0, distance: Infinity };
-    });
+    switch (event.type) {
+      case 'match_started':
+        // Already handled in startMatch
+        break;
 
-    // Sort by distance (worst first)
-    bidsArray.sort((a, b) => (b.distance ?? Infinity) - (a.distance ?? Infinity));
+      case 'round_started':
+        wsManager.broadcastAll({
+          type: 'game_event',
+          matchId,
+          gameTypeId: dbMatch.gameTypeId,
+          event: 'round_started',
+          data: {
+            round: event.round,
+            endsAt: event.endsAt,
+            ...event.data,
+          },
+        }, botIds);
 
-    // Reveal bids dramatically
-    const bidsToReveal = bidsArray.map(b => {
-      const bot = am.bots.get(b.botId);
-      return { botId: b.botId, botName: bot?.name || 'Unknown', price: b.price };
-    }).reverse(); // Show best first
+        // Send action request to bots
+        for (const botId of botIds) {
+          wsManager.sendToBot(botId, {
+            type: 'action_request',
+            matchId,
+            gameTypeId: dbMatch.gameTypeId,
+            deadline: event.endsAt,
+            context: event.data,
+          });
+        }
+        break;
 
-    await this.delay(BID_LOCK_TIME / 2);
+      case 'chat_message':
+        wsManager.broadcastAll({
+          type: 'chat_message',
+          matchId,
+          botId: event.playerId,
+          botName: event.playerName,
+          message: event.message,
+        }, botIds);
+        break;
 
-    wsManager.broadcastAll({
-      type: 'bids_reveal',
-      matchId: am.match.id,
-      bids: bidsToReveal
-    }, am.activeBotIds);
+      case 'player_action':
+        if (event.public) {
+          wsManager.broadcastAll({
+            type: 'game_event',
+            matchId,
+            gameTypeId: dbMatch.gameTypeId,
+            event: 'player_action',
+            data: { playerId: event.playerId, actionType: event.actionType },
+          }, botIds);
+        }
+        break;
 
-    await this.delay(BID_LOCK_TIME / 2);
+      case 'round_ended':
+        wsManager.broadcastAll({
+          type: 'game_event',
+          matchId,
+          gameTypeId: dbMatch.gameTypeId,
+          event: 'round_ended',
+          data: { round: event.round, ...event.data },
+        }, botIds);
+        break;
 
-    // Reveal actual price
-    wsManager.broadcastAll({
-      type: 'price_reveal',
-      matchId: am.match.id,
-      actualPrice: item.price,
-      item
-    }, am.activeBotIds);
+      case 'player_eliminated':
+        wsManager.broadcastAll({
+          type: 'game_event',
+          matchId,
+          gameTypeId: dbMatch.gameTypeId,
+          event: 'player_eliminated',
+          data: { 
+            playerId: event.playerId, 
+            playerName: event.playerName,
+            round: event.round,
+          },
+        }, botIds);
+        break;
 
-    // Determine eliminations
-    const toEliminate = Math.min(ELIMINATE_PER_ROUND, am.activeBotIds.length - 1);
-    const eliminated: Array<{ botId: string; botName: string; distance: number }> = [];
+      case 'game_event':
+        // Pass through game-specific events
+        wsManager.broadcastAll({
+          type: 'game_event',
+          matchId,
+          gameTypeId: dbMatch.gameTypeId,
+          event: event.event,
+          data: event.data,
+        }, botIds);
+        break;
 
-    for (let i = 0; i < toEliminate; i++) {
-      const worst = bidsArray[i];
-      const bot = am.bots.get(worst.botId);
-      eliminated.push({
-        botId: worst.botId,
-        botName: bot?.name || 'Unknown',
-        distance: worst.distance ?? Infinity
-      });
-      am.activeBotIds = am.activeBotIds.filter(id => id !== worst.botId);
+      case 'match_finished':
+        this.endMatch(matchId, event.winner, event.placements);
+        break;
     }
-
-    await this.delay(REVEAL_TIME / 2);
-
-    // Broadcast eliminations
-    wsManager.broadcastAll({
-      type: 'elimination',
-      matchId: am.match.id,
-      eliminated
-    }, [...am.activeBotIds, ...eliminated.map(e => e.botId)]);
-
-    // Notify eliminated bots
-    for (const e of eliminated) {
-      wsManager.sendToBot(e.botId, {
-        type: 'round_result',
-        actualPrice: item.price,
-        yourBid: am.bids.get(e.botId)?.price ?? -1,
-        yourDistance: e.distance,
-        eliminated: true
-      });
-    }
-
-    // Notify surviving bots
-    for (const botId of am.activeBotIds) {
-      const bid = am.bids.get(botId);
-      wsManager.sendToBot(botId, {
-        type: 'round_result',
-        actualPrice: item.price,
-        yourBid: bid?.price ?? -1,
-        yourDistance: bid ? Math.abs(bid.price - item.price) : Infinity,
-        eliminated: false
-      });
-    }
-
-    // Record round result
-    const roundResult: MatchRound = {
-      roundNumber: am.currentRound,
-      item,
-      bids: bidsArray,
-      chat: am.chat,
-      eliminated: eliminated.map(e => e.botId),
-      startedAt: am.roundStartedAt,
-      endedAt: Date.now()
-    };
-    am.match.rounds.push(roundResult);
-    updateMatch(am.match);
-
-    await this.delay(REVEAL_TIME / 2);
-
-    // Broadcast round end
-    wsManager.broadcastAll({
-      type: 'round_end',
-      matchId: am.match.id,
-      round: am.currentRound,
-      surviving: am.activeBotIds
-    }, am.activeBotIds);
-
-    console.log(`❌ Eliminated: ${eliminated.map(e => e.botName).join(', ')}`);
-    console.log(`✅ Surviving: ${am.activeBotIds.length} bots`);
   }
 
-  // End the match
-  private async endMatch(): Promise<void> {
-    if (!this.activeMatch) return;
+  /**
+   * Handle bot commands
+   */
+  private handleBotCommand(botId: string, command: BotCommand): void {
+    // Find which match this bot is in
+    const matchId = wsManager.getBotMatch(botId);
+    if (!matchId) return;
 
-    const am = this.activeMatch;
-    const winnerId = am.activeBotIds[0];
-    const winner = am.bots.get(winnerId);
+    const active = this.activeMatches.get(matchId);
+    if (!active) return;
 
-    am.match.status = 'finished';
-    am.match.winner = winnerId;
-    am.match.endedAt = Date.now();
-    updateMatch(am.match);
+    const { gameMatch, dbMatch } = active;
 
-    // Update bot stats
-    const allBotIds = Array.from(am.bots.keys());
-    for (let i = 0; i < allBotIds.length; i++) {
-      const botId = allBotIds[i];
-      // Calculate placement based on when eliminated
-      let placement = allBotIds.length;
-      for (let r = 0; r < am.match.rounds.length; r++) {
-        if (am.match.rounds[r].eliminated.includes(botId)) {
-          placement = allBotIds.length - (r * ELIMINATE_PER_ROUND);
-          break;
-        }
-      }
-      if (botId === winnerId) placement = 1;
-      updateBotStats(botId, placement, botId === winnerId);
+    if (command.type === 'chat') {
+      const result = gameMatch.handleAction(botId, { type: 'chat', message: command.message });
+      wsManager.sendToBot(botId, { type: 'action_result', success: result.success, error: result.error });
+    } else if (command.type === 'action') {
+      // Game-specific action
+      const result = gameMatch.handleAction(botId, command.action);
+      wsManager.sendToBot(botId, { type: 'action_result', success: result.success, error: result.error });
     }
+  }
 
-    // Build placements
-    const placements = allBotIds.map(botId => {
-      const bot = am.bots.get(botId);
-      let placement = allBotIds.length;
-      if (botId === winnerId) placement = 1;
-      else {
-        for (let r = 0; r < am.match.rounds.length; r++) {
-          if (am.match.rounds[r].eliminated.includes(botId)) {
-            placement = allBotIds.length - r;
-            break;
-          }
-        }
-      }
-      return { botId, botName: bot?.name || 'Unknown', placement };
-    }).sort((a, b) => a.placement - b.placement);
+  /**
+   * End a match
+   */
+  private endMatch(matchId: string, winner: Player | null, placements: any[]): void {
+    const active = this.activeMatches.get(matchId);
+    if (!active) return;
 
-    console.log(`🏆 Match ended! Winner: ${winner?.name}`);
+    const { dbMatch, bots } = active;
+    const botIds = Array.from(bots.keys());
 
-    // Broadcast match end
+    // Convert placements
+    const matchPlacements: MatchPlacement[] = placements.map(p => ({
+      botId: p.playerId,
+      place: p.place,
+      points: p.points,
+    }));
+
+    // Update DB
+    finishMatch(matchId, winner?.id || null, matchPlacements);
+
+    // Get winner as BotPublic
+    const winnerBot = winner ? bots.get(winner.id) : null;
+
+    console.log(`🏆 ${dbMatch.gameTypeId} match ended! Winner: ${winner?.name || 'none'}`);
+
+    // Notify everyone
     wsManager.broadcastAll({
-      type: 'match_end',
-      matchId: am.match.id,
-      winner: winner!,
-      placements
-    }, allBotIds);
+      type: 'match_ended',
+      matchId,
+      gameTypeId: dbMatch.gameTypeId,
+      winner: winnerBot!,
+      placements: matchPlacements,
+    }, botIds);
 
-    // Notify bots
-    for (const botId of allBotIds) {
-      const p = placements.find(x => x.botId === botId);
+    // Notify individual bots
+    for (const botId of botIds) {
+      const placement = matchPlacements.find(p => p.botId === botId);
       wsManager.sendToBot(botId, {
         type: 'match_result',
-        placement: p?.placement || allBotIds.length,
-        winner: winnerId
+        matchId,
+        placement: placement?.place || botIds.length,
+        points: placement?.points || 0,
+        won: botId === winner?.id,
       });
       wsManager.setBotMatch(botId, null);
+      queueManager.setBotMatchEnded(botId);
     }
 
-    this.activeMatch = null;
+    // Clean up
+    this.activeMatches.delete(matchId);
   }
 
-  // Select items for a match
-  private selectItems(count: number): MatchItem[] {
-    // Use real items if available, otherwise generate placeholders
-    if (REAL_ITEMS && REAL_ITEMS.length >= count) {
-      const shuffled = [...REAL_ITEMS].sort(() => Math.random() - 0.5);
-      return shuffled.slice(0, count).map(item => ({
-        id: item.id,
-        title: item.title,
-        price: item.price,
-        imageUrls: item.imageUrls || [],
-        proofUrl: item.proofUrl
-      }));
+  /**
+   * Get active match for a game type
+   */
+  getActiveMatchByGameType(gameTypeId: string): ActiveMatch | null {
+    for (const [, active] of this.activeMatches) {
+      if (active.dbMatch.gameTypeId === gameTypeId) {
+        return active;
+      }
     }
-
-    // Fallback to placeholder items
-    return Array(count).fill(null).map((_, i) => ({
-      id: `item-${i}`,
-      title: `Mystery Item ${i + 1}`,
-      price: Math.floor(Math.random() * 50000) + 1000,
-      imageUrls: [],
-      proofUrl: ''
-    }));
+    return null;
   }
 
-  // Helper delay
+  /**
+   * Get all active matches
+   */
+  getActiveMatches(): ActiveMatch[] {
+    return Array.from(this.activeMatches.values());
+  }
+
+  /**
+   * Get active match by ID
+   */
+  getActiveMatch(matchId: string): ActiveMatch | null {
+    return this.activeMatches.get(matchId) || null;
+  }
+
+  /**
+   * Check if any match is active
+   */
+  hasActiveMatch(gameTypeId?: string): boolean {
+    if (gameTypeId) {
+      return this.getActiveMatchByGameType(gameTypeId) !== null;
+    }
+    return this.activeMatches.size > 0;
+  }
+
+  /**
+   * Get match count by game type
+   */
+  getMatchCount(gameTypeId: string): number {
+    let count = 0;
+    for (const [, active] of this.activeMatches) {
+      if (active.dbMatch.gameTypeId === gameTypeId) {
+        count++;
+      }
+    }
+    return count;
+  }
+
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
-
-  // Get current match status
-  getActiveMatch(): ActiveMatch | null {
-    return this.activeMatch;
-  }
-
-  isMatchActive(): boolean {
-    return this.activeMatch !== null;
-  }
 }
 
-export const orchestrator = new MatchOrchestrator();
+export const orchestrator = new MultiMatchOrchestrator();
