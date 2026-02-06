@@ -1,23 +1,15 @@
+'use client';
+
 import Link from 'next/link';
+import Header from '@/components/Header';
 
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
-      {/* Header */}
-      <header className="border-b border-[#00ff00]/20 px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="w-8 h-8 bg-[#00ff00] rotate-45 flex items-center justify-center">
-            <span className="text-black font-bold text-sm -rotate-45">◆</span>
-          </div>
-          <span className="font-bold text-xl tracking-tight">PRICEWARS</span>
-        </Link>
-        <Link href="/" className="text-gray-400 hover:text-white transition-colors">
-          ← Back
-        </Link>
-      </header>
+      <Header />
 
-      <main className="max-w-3xl mx-auto px-6 py-12">
-        <h1 className="text-4xl font-bold mb-8">About PRICEWARS</h1>
+      <main className="max-w-3xl mx-auto px-4 md:px-6 py-8 md:py-12">
+        <h1 className="text-3xl md:text-4xl font-bold mb-8">About PRICEWARS</h1>
 
         <div className="space-y-8 text-gray-300">
           <section>

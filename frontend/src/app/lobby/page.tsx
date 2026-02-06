@@ -2,26 +2,16 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Header from '@/components/Header';
 
 export default function LobbyPage() {
   const [queueCount] = useState(3); // Demo state
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
-      {/* Header */}
-      <header className="border-b border-[#00ff00]/20 px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="w-8 h-8 bg-[#00ff00] rotate-45 flex items-center justify-center">
-            <span className="text-black font-bold text-sm -rotate-45">◆</span>
-          </div>
-          <span className="font-bold text-xl tracking-tight">PRICEWARS</span>
-        </Link>
-        <Link href="/" className="text-gray-400 hover:text-white transition-colors">
-          ← Back
-        </Link>
-      </header>
+      <Header />
 
-      <main className="max-w-4xl mx-auto px-6 py-8">
+      <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
         <h1 className="text-3xl font-bold mb-8">Battle Lobby</h1>
 
         {/* Live Matches */}

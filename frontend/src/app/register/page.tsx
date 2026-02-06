@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Bot, Check, Copy, AlertCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import Header from '@/components/Header';
 
 const AVATARS = ['🤖', '🧠', '✨', '🔮', '♊', '🦾', '👾', '🎯', '⚡', '🌟', '🔥', '💎'];
 
@@ -50,19 +50,21 @@ export default function RegisterPage() {
 
   if (step === 'success' && credentials) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] px-4 py-8">
-        <div className="max-w-md mx-auto">
+      <div className="min-h-screen bg-[#0a0a0a] text-white">
+        <Header />
+        
+        <main className="max-w-md mx-auto px-4 py-8">
           {/* Success Header */}
-          <div className="text-center mb-8 animate-slide-up">
-            <div className="w-20 h-20 rounded-full bg-[#00ff00]/20 border-2 border-[#00ff00] flex items-center justify-center mx-auto mb-4 animate-pulse-glow">
-              <Check className="w-10 h-10 text-[#00ff00]" />
+          <div className="text-center mb-8">
+            <div className="w-20 h-20 rounded-full bg-[#00ff00]/20 border-2 border-[#00ff00] flex items-center justify-center mx-auto mb-4">
+              <span className="text-3xl">✓</span>
             </div>
             <h1 className="text-2xl font-bold mb-2">Bot Registered!</h1>
             <p className="text-gray-400">Save your API key - you won't see it again</p>
           </div>
 
           {/* Credentials Card */}
-          <div className="card p-6 space-y-4 mb-6">
+          <div className="bg-[#111] rounded-xl border border-gray-800 p-6 space-y-4 mb-6">
             {/* Bot Preview */}
             <div className="flex items-center gap-4 p-4 bg-[#1a1a1a] rounded-lg">
               <span className="text-4xl">{avatar}</span>
@@ -83,7 +85,7 @@ export default function RegisterPage() {
                   onClick={() => copyToClipboard(credentials.id, 'id')}
                   className="p-3 bg-[#1a1a1a] rounded-lg hover:bg-[#222] transition-colors"
                 >
-                  {copied === 'id' ? <Check className="w-4 h-4 text-[#00ff00]" /> : <Copy className="w-4 h-4" />}
+                  {copied === 'id' ? '✓' : '📋'}
                 </button>
               </div>
             </div>
@@ -101,53 +103,49 @@ export default function RegisterPage() {
                   onClick={() => copyToClipboard(credentials.apiKey, 'key')}
                   className="p-3 bg-[#00ff00]/10 border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/20 transition-colors"
                 >
-                  {copied === 'key' ? <Check className="w-4 h-4 text-[#00ff00]" /> : <Copy className="w-4 h-4 text-[#00ff00]" />}
+                  {copied === 'key' ? '✓' : '📋'}
                 </button>
               </div>
             </div>
           </div>
 
           {/* Next Steps */}
-          <div className="card p-4 mb-6">
+          <div className="bg-[#111] rounded-xl border border-gray-800 p-4 mb-6">
             <h3 className="font-bold text-sm mb-3 text-[#00ff00]">NEXT STEPS</h3>
             <ol className="text-gray-400 text-sm space-y-2 list-decimal list-inside">
-              <li>Connect your agent via WebSocket</li>
+              <li>Connect your agent via MCP</li>
               <li>Join the queue when ready</li>
               <li>Your bot will auto-play when match starts</li>
             </ol>
           </div>
 
           <Link 
-            href="/docs"
+            href="/mcp"
             className="block w-full py-3 bg-[#00ff00] text-black font-bold text-center rounded-lg hover:bg-[#00cc00] transition-colors"
           >
-            View API Documentation
+            View MCP Documentation
           </Link>
-        </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] px-4 py-8">
-      <div className="max-w-md mx-auto">
-        {/* Back Button */}
-        <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Arena
-        </Link>
-
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
+      <Header />
+      
+      <main className="max-w-md mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-[#00ff00]/20 border-2 border-[#00ff00] rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Bot className="w-8 h-8 text-[#00ff00]" />
+            <span className="text-3xl">🤖</span>
           </div>
           <h1 className="text-2xl font-bold mb-2">Register Bot</h1>
           <p className="text-gray-400">Create your AI agent to compete</p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="card p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="bg-[#111] rounded-xl border border-gray-800 p-6 space-y-6">
           {/* Avatar Selection */}
           <div>
             <label className="block text-sm font-medium mb-3 text-gray-300">Choose Avatar</label>
@@ -191,7 +189,7 @@ export default function RegisterPage() {
           {/* Error */}
           {error && (
             <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>⚠️</span>
               {error}
             </div>
           )}
@@ -210,7 +208,7 @@ export default function RegisterPage() {
         <p className="text-gray-500 text-sm text-center mt-6">
           Registration is free. You'll receive an API key to connect your agent.
         </p>
-      </div>
+      </main>
     </div>
   );
 }

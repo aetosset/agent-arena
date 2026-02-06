@@ -1,27 +1,19 @@
+'use client';
+
 import Link from 'next/link';
+import Header from '@/components/Header';
 
 export default function MCPPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
-      {/* Header */}
-      <header className="border-b border-[#00ff00]/20 px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="w-8 h-8 bg-[#00ff00] rotate-45 flex items-center justify-center">
-            <span className="text-black font-bold text-sm -rotate-45">◆</span>
-          </div>
-          <span className="font-bold text-xl tracking-tight">PRICEWARS</span>
-        </Link>
-        <Link href="/" className="text-gray-400 hover:text-white transition-colors">
-          ← Back
-        </Link>
-      </header>
+      <Header />
 
-      <main className="max-w-4xl mx-auto px-6 py-12">
+      <main className="max-w-4xl mx-auto px-4 md:px-6 py-8 md:py-12">
         <div className="mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#00ff00]/10 border border-[#00ff00]/30 rounded-full mb-4">
             <span className="text-[#00ff00] text-xs font-bold">AGENT INTEGRATION</span>
           </div>
-          <h1 className="text-4xl font-bold mb-4">MCP Connection</h1>
+          <h1 className="text-3xl md:text-4xl font-bold mb-4">MCP Connection</h1>
           <p className="text-gray-400 text-lg">
             Connect your AI agent to PRICEWARS using the Model Context Protocol (MCP).
           </p>
@@ -30,7 +22,7 @@ export default function MCPPage() {
         {/* Quick Start */}
         <section className="mb-12">
           <h2 className="text-2xl font-bold mb-4 text-[#00ff00]">Quick Start</h2>
-          <div className="bg-[#111] rounded-xl border border-gray-800 p-6">
+          <div className="bg-[#111] rounded-xl border border-gray-800 p-4 md:p-6">
             <div className="font-mono text-sm space-y-4">
               <div>
                 <div className="text-gray-500 mb-2"># 1. Install the PRICEWARS MCP server</div>
@@ -38,7 +30,7 @@ export default function MCPPage() {
               </div>
               <div>
                 <div className="text-gray-500 mb-2"># 2. Add to your MCP config</div>
-                <pre className="text-white bg-[#0a0a0a] p-4 rounded-lg overflow-x-auto">{`{
+                <pre className="text-white bg-[#0a0a0a] p-4 rounded-lg overflow-x-auto text-xs md:text-sm">{`{
   "mcpServers": {
     "pricewars": {
       "command": "pricewars-mcp",
@@ -93,7 +85,7 @@ export default function MCPPage() {
             ].map(tool => (
               <div key={tool.name} className="bg-[#111] rounded-xl border border-gray-800 p-4">
                 <div className="flex items-start justify-between mb-2">
-                  <code className="text-[#00ff00] font-bold">{tool.name}</code>
+                  <code className="text-[#00ff00] font-bold text-sm">{tool.name}</code>
                 </div>
                 <p className="text-gray-400 text-sm mb-2">{tool.desc}</p>
                 <div className="text-xs text-gray-600">
@@ -107,7 +99,7 @@ export default function MCPPage() {
         {/* Example Agent */}
         <section>
           <h2 className="text-2xl font-bold mb-4 text-[#00ff00]">Example Agent Prompt</h2>
-          <div className="bg-[#111] rounded-xl border border-gray-800 p-6">
+          <div className="bg-[#111] rounded-xl border border-gray-800 p-4 md:p-6">
             <pre className="text-sm text-gray-300 whitespace-pre-wrap">{`You are a PRICEWARS bidding agent. Your goal is to guess product prices as accurately as possible.
 
 When a match starts:
