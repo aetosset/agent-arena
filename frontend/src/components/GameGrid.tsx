@@ -86,11 +86,11 @@ export function getIconPixelSize(gridIconSize: GridIconSize): number {
  * Get starting positions for players based on game type
  */
 export function getInitialPositions(playerCount: number, gridIconSize: GridIconSize): { col: number; row: number }[] {
-  // RPS: 2 players face off, left vs right
+  // RPS: 2 players face off, left vs right (symmetric around center col 6.5)
   if (playerCount === 2) {
     return [
-      { col: 2, row: 3 },   // Player 1: left side
-      { col: 9, row: 3 },   // Player 2: right side
+      { col: 3, row: 3 },   // Player 1: left side (3.5 from center)
+      { col: 10, row: 3 },  // Player 2: right side (3.5 from center)
     ];
   }
   

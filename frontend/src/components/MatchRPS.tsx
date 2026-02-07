@@ -9,6 +9,45 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+
+// ========== SOUND EFFECTS ==========
+const audioContextRef = { current: null as AudioContext | null };
+
+function playBotSound() {
+  try {
+    // Lazy init audio context (needs user interaction first)
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    const ctx = audioContextRef.current;
+    
+    // Create oscillator for a cute blip
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    // Random pitch variation for variety (400-800 Hz range, cute bloop sounds)
+    const baseFreq = 500 + Math.random() * 300;
+    osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.2, ctx.currentTime + 0.05);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.8, ctx.currentTime + 0.1);
+    
+    // Sine wave = soft/cute, triangle = slightly brighter
+    osc.type = Math.random() > 0.5 ? 'sine' : 'triangle';
+    
+    // Quick fade in/out for a soft blip
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.15);
+  } catch (e) {
+    // Audio not supported or not allowed - fail silently
+  }
+}
 import GameGrid, { 
   GridPlayer, 
   GridConfig, 
@@ -135,6 +174,9 @@ export default function MatchRPS() {
     }
   }, [now, phase]);
 
+  // Track previous chat length for sound effects
+  const prevChatLengthRef = useRef(0);
+
   // Chat during throwing phase
   useEffect(() => {
     if (phase !== 'throwing') return;
@@ -153,6 +195,14 @@ export default function MatchRPS() {
     
     return () => clearInterval(interval);
   }, [phase, players]);
+
+  // Play sound when new chat message arrives
+  useEffect(() => {
+    if (chat.length > prevChatLengthRef.current) {
+      playBotSound();
+    }
+    prevChatLengthRef.current = chat.length;
+  }, [chat.length]);
 
   function advancePhase() {
     startTimeRef.current = Date.now();
