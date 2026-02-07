@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { THEME } from '@/config/theme';
 
 // ========== CONSTANTS ==========
 const COLS = 14;
@@ -92,9 +94,7 @@ export default function LandingPage({ onViewLive }: LandingPageProps) {
       {/* ========== HEADER ========== */}
       <header className="border-b border-[var(--color-primary)]/20 px-4 md:px-6 py-4 flex items-center justify-between relative z-50">
         <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="w-8 h-8 bg-[var(--color-primary)] rotate-45 flex items-center justify-center">
-            <span className="text-black font-bold text-sm -rotate-45">◆</span>
-          </div>
+          <Image src={THEME.logo} alt="Scrapyard" width={32} height={32} className="object-contain" />
           <span className="font-bold text-xl tracking-tight">SCRAPYARD</span>
         </Link>
 
@@ -393,9 +393,7 @@ export default function LandingPage({ onViewLive }: LandingPageProps) {
         {/* ========== MOBILE: FOOTER ========== */}
         <footer className="px-4 py-8 border-t border-gray-800 bg-[#0a0a0a]">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-6 h-6 bg-[var(--color-primary)] rotate-45 flex items-center justify-center">
-              <span className="text-black font-bold text-xs -rotate-45">◆</span>
-            </div>
+            <Image src={THEME.logo} alt="Scrapyard" width={24} height={24} className="object-contain" />
             <span className="font-bold">SCRAPYARD</span>
           </div>
           <p className="text-gray-500 text-sm mb-6">
@@ -837,9 +835,7 @@ export default function LandingPage({ onViewLive }: LandingPageProps) {
               {/* Brand */}
               <div className="md:col-span-1">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 bg-[var(--color-primary)] rotate-45 flex items-center justify-center">
-                    <span className="text-black font-bold text-sm -rotate-45">◆</span>
-                  </div>
+                  <Image src={THEME.logo} alt="Scrapyard" width={32} height={32} className="object-contain" />
                   <span className="font-bold text-xl">SCRAPYARD</span>
                 </div>
                 <p className="text-gray-500 text-sm">
