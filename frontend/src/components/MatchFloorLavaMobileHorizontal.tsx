@@ -74,6 +74,7 @@ interface Bot {
   committedRow: number | null;
   preCol: number | null;
   preRow: number | null;
+  roll: number | null;
 }
 
 interface ChatMsg {
@@ -91,6 +92,7 @@ interface CollisionInfo {
   botIds: string[];
   loserIds: string[];
   winnerId: string;
+  rolls: { botId: string; botName: string; avatar: string; roll: number }[];
 }
 
 interface Game {
@@ -186,6 +188,7 @@ function createBots(): Bot[] {
     committedRow: null,
     preCol: null,
     preRow: null,
+    roll: null,
   }));
 }
 
@@ -267,9 +270,13 @@ export default function MatchFloorLavaMobileHorizontal() {
 
     if (elapsed >= phaseDuration) {
       setGame(g => {
-        // WALKING → DELIBERATION
+        // WALKING → DELIBERATION: Assign dice rolls
         if (g.phase === 'walking') {
-          return { ...g, phase: 'deliberation' as Phase, startTime: Date.now() };
+          const botsWithRolls = g.bots.map(bot => ({
+            ...bot,
+            roll: bot.eliminated ? null : Math.floor(Math.random() * 6) + 1,
+          }));
+          return { ...g, phase: 'deliberation' as Phase, startTime: Date.now(), bots: botsWithRolls };
         }
         
         // DELIBERATION → REVEAL
@@ -317,15 +324,35 @@ export default function MatchFloorLavaMobileHorizontal() {
             }
           });
           
-          // Collision: 1 survivor, all others eliminated
+          // Collision: HIGHEST ROLL survives, ALL others eliminated
           positionMap.forEach((bots, key) => {
             if (bots.length > 1) {
               const [col, row] = key.split(',').map(Number);
-              const winnerIdx = Math.floor(Math.random() * bots.length);
-              const winnerId = bots[winnerIdx].id;
-              const loserIds = bots.filter((_, i) => i !== winnerIdx).map(b => b.id);
-              collisions.push({ col, row, botIds: bots.map(b => b.id), loserIds, winnerId });
-              eliminatedIds.push(...loserIds);
+              
+              const sorted = [...bots].sort((a, b) => {
+                const rollDiff = (b.roll || 0) - (a.roll || 0);
+                if (rollDiff !== 0) return rollDiff;
+                return a.id.localeCompare(b.id);
+              });
+              
+              const winner = sorted[0];
+              const losers = sorted.slice(1);
+              
+              const rolls = bots.map(bot => ({
+                botId: bot.id,
+                botName: bot.name,
+                avatar: bot.avatar,
+                roll: bot.roll || 0,
+              }));
+              
+              collisions.push({ 
+                col, row, 
+                botIds: bots.map(b => b.id), 
+                loserIds: losers.map(b => b.id), 
+                winnerId: winner.id,
+                rolls,
+              });
+              eliminatedIds.push(...losers.map(b => b.id));
             }
           });
           
@@ -347,11 +374,29 @@ export default function MatchFloorLavaMobileHorizontal() {
             eliminatedThisRound: eliminatedIds.includes(bot.id),
           }));
           
+          // Add collision messages to chat
+          const collisionMessages: ChatMsg[] = collisions.map((collision, idx) => {
+            const winner = collision.rolls.find(r => r.botId === collision.winnerId);
+            const losers = collision.rolls.filter(r => collision.loserIds.includes(r.botId));
+            const loserText = losers.map(l => `${l.avatar}${l.botName}(🎲${l.roll})`).join(', ');
+            const winnerText = `${winner?.avatar}${winner?.botName}(🎲${winner?.roll})`;
+            
+            return {
+              id: `collision-${Date.now()}-${idx}`,
+              botId: 'system',
+              botName: 'SYSTEM',
+              avatar: '🚨',
+              text: `COLLISION! ${winnerText} eliminated ${loserText}`,
+              time: Date.now(),
+            };
+          });
+          
           return {
             ...g,
             phase: 'reveal' as Phase,
             startTime: Date.now(),
             bots: revealBots,
+            chat: [...g.chat, ...collisionMessages].slice(-50),
             collisions,
             eliminatedThisRound: eliminatedIds,
           };
@@ -409,6 +454,7 @@ export default function MatchFloorLavaMobileHorizontal() {
               committedRow: null,
               preCol: null,
               preRow: null,
+              roll: null,
             };
             
             // Check if bot's current tile is now lava
@@ -422,6 +468,7 @@ export default function MatchFloorLavaMobileHorizontal() {
                 eliminatedThisRound: false,
                 committedCol: null,
                 committedRow: null,
+                roll: null,
                 preCol: null,
                 preRow: null,
               };
@@ -435,6 +482,7 @@ export default function MatchFloorLavaMobileHorizontal() {
               committedRow: null,
               preCol: null,
               preRow: null,
+              roll: null,
             };
           });
           
