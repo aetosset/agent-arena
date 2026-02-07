@@ -270,11 +270,22 @@ export default function MatchFloorLavaMobileHorizontal() {
 
     if (elapsed >= phaseDuration) {
       setGame(g => {
-        // WALKING → DELIBERATION: Assign dice rolls
+        // WALKING → DELIBERATION: Assign unique rolls 1-N
         if (g.phase === 'walking') {
+          const aliveBots = g.bots.filter(b => !b.eliminated);
+          const n = aliveBots.length;
+          
+          // Create shuffled array of 1 to N
+          const rolls = Array.from({ length: n }, (_, i) => i + 1);
+          for (let i = rolls.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [rolls[i], rolls[j]] = [rolls[j], rolls[i]];
+          }
+          
+          let rollIndex = 0;
           const botsWithRolls = g.bots.map(bot => ({
             ...bot,
-            roll: bot.eliminated ? null : Math.floor(Math.random() * 6) + 1,
+            roll: bot.eliminated ? null : rolls[rollIndex++],
           }));
           return { ...g, phase: 'deliberation' as Phase, startTime: Date.now(), bots: botsWithRolls };
         }
