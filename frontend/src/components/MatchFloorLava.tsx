@@ -81,6 +81,9 @@ interface Bot {
   // Committed position for resolve phase
   committedCol: number | null;
   committedRow: number | null;
+  // Pre-resolve position (where bot was before moving)
+  preCol: number | null;
+  preRow: number | null;
 }
 
 interface ChatMsg {
@@ -188,6 +191,8 @@ function createBots(): Bot[] {
     row: positions[i].row,
     committedCol: null,
     committedRow: null,
+    preCol: null,
+    preRow: null,
   }));
 }
 
@@ -332,20 +337,18 @@ export default function MatchFloorLava() {
             }
           });
           
-          // Play elimination sound if anyone died
-          if (eliminatedIds.length > 0) {
-            playEliminationSound();
-          }
-          
-          // Mark bots as eliminated and move survivors to their committed positions
+          // DON'T move bots yet - store their pre-move positions
+          // Movement and elimination will be shown visually during resolve phase
           const newBots = g.bots.map(bot => {
-            if (eliminatedIds.includes(bot.id)) {
-              return { ...bot, eliminated: true, eliminatedThisRound: true };
-            }
-            if (!bot.eliminated && bot.committedCol !== null && bot.committedRow !== null) {
-              return { ...bot, col: bot.committedCol, row: bot.committedRow };
-            }
-            return bot;
+            if (bot.eliminated) return bot;
+            // Store current position as pre-resolve position
+            return { 
+              ...bot, 
+              preCol: bot.col, 
+              preRow: bot.row,
+              // Mark for elimination but don't set eliminated yet (visual delay)
+              eliminatedThisRound: eliminatedIds.includes(bot.id),
+            };
           });
           
           return {
@@ -359,6 +362,22 @@ export default function MatchFloorLava() {
         }
         
         if (g.phase === 'resolve') {
+          // Play elimination sound now (at end of resolve)
+          if (g.eliminatedThisRound.length > 0) {
+            playEliminationSound();
+          }
+          
+          // Now actually move bots and eliminate
+          const movedBots = g.bots.map(bot => {
+            if (g.eliminatedThisRound.includes(bot.id)) {
+              return { ...bot, eliminated: true };
+            }
+            if (!bot.eliminated && bot.committedCol !== null && bot.committedRow !== null) {
+              return { ...bot, col: bot.committedCol, row: bot.committedRow };
+            }
+            return bot;
+          });
+          
           // Transition to next round - spread lava (50% reduction!)
           const newGrid = g.grid.map(row => [...row]);
           const safeTiles: { x: number; y: number }[] = [];
@@ -380,12 +399,14 @@ export default function MatchFloorLava() {
             safeTiles.splice(idx, 1);
           }
           
-          // Reset bot states for new round
-          const newBots = g.bots.map(bot => ({
+          // Reset bot states for new round (using movedBots which has updated positions/eliminations)
+          const newBots = movedBots.map(bot => ({
             ...bot,
             eliminatedThisRound: false,
             committedCol: null,
             committedRow: null,
+            preCol: null,
+            preRow: null,
           }));
           
           // Check if game is over (1 or fewer bots alive)
@@ -485,6 +506,27 @@ export default function MatchFloorLava() {
   
   // Find collision tiles for highlighting
   const collisionTiles = new Set(game.collisions.map(c => `${c.col},${c.row}`));
+  
+  // Resolve phase sub-stages (based on elapsed time within resolve)
+  // 0-3s: Show committed tiles, bots at old position
+  // 3-6s: Bots move to committed positions (collisions visible)
+  // 6-9s: Eliminations shown
+  const resolveStage = game.phase === 'resolve' 
+    ? elapsed < 3000 ? 'showing' : elapsed < 6000 ? 'moving' : 'eliminating'
+    : null;
+  
+  // Build map of committed tiles to bot avatars (for resolve visualization)
+  const committedTileMap = new Map<string, Bot[]>();
+  if (game.phase === 'resolve' || game.phase === 'commit') {
+    game.bots.forEach(bot => {
+      if (!bot.eliminated && bot.committedCol !== null && bot.committedRow !== null) {
+        const key = `${bot.committedCol},${bot.committedRow}`;
+        const existing = committedTileMap.get(key) || [];
+        existing.push(bot);
+        committedTileMap.set(key, existing);
+      }
+    });
+  }
 
   // ============ RENDER ============
   return (
@@ -584,7 +626,9 @@ export default function MatchFloorLava() {
               }`}>
                 {game.phase === 'deliberation' && 'DELIBERATION PHASE'}
                 {game.phase === 'commit' && '🔒 LOCKING MOVES...'}
-                {game.phase === 'resolve' && '⚡ RESOLVING!'}
+                {game.phase === 'resolve' && resolveStage === 'showing' && '🎯 REVEALING CHOICES...'}
+                {game.phase === 'resolve' && resolveStage === 'moving' && '⚡ MOVING TO POSITIONS...'}
+                {game.phase === 'resolve' && resolveStage === 'eliminating' && '💀 ELIMINATIONS!'}
                 {game.phase === 'finished' && '🏆 MATCH COMPLETE'}
               </span>
               <span className="text-gray-700">|</span>
@@ -653,21 +697,25 @@ export default function MatchFloorLava() {
               {/* Grid tiles */}
               {game.grid.map((row, y) =>
                 row.map((isLava, x) => {
-                  const isCollisionTile = collisionTiles.has(`${x},${y}`) && game.phase === 'resolve';
-                  const hasCommittedBot = game.phase === 'commit' && game.bots.some(
-                    b => !b.eliminated && b.committedCol === x && b.committedRow === y
-                  );
+                  const tileKey = `${x},${y}`;
+                  const isCollisionTile = collisionTiles.has(tileKey) && game.phase === 'resolve';
+                  const committedBots = committedTileMap.get(tileKey) || [];
+                  const hasCommittedBot = committedBots.length > 0;
+                  const isShowingCommits = (game.phase === 'commit' || resolveStage === 'showing') && hasCommittedBot;
+                  const hasMultipleBots = committedBots.length > 1;
                   
                   return (
                     <div
-                      key={`${x}-${y}`}
+                      key={tileKey}
                       className={`absolute transition-all duration-500 ${
                         isLava
                           ? 'bg-gradient-to-br from-orange-600 to-red-800'
-                          : isCollisionTile
+                          : isCollisionTile && resolveStage !== 'showing'
                             ? 'bg-yellow-500/30 border-2 border-yellow-400 animate-pulse'
-                            : hasCommittedBot
-                              ? 'bg-blue-500/20 border border-blue-400/50'
+                            : isShowingCommits
+                              ? hasMultipleBots 
+                                ? 'bg-red-500/30 border-2 border-red-400 animate-pulse' // Collision incoming!
+                                : 'bg-blue-500/20 border-2 border-blue-400/50'
                               : ''
                       }`}
                       style={{
@@ -683,9 +731,29 @@ export default function MatchFloorLava() {
                           🔥
                         </div>
                       )}
-                      {isCollisionTile && (
+                      {isCollisionTile && resolveStage !== 'showing' && (
                         <div className="absolute inset-0 flex items-center justify-center text-2xl">
                           💥
+                        </div>
+                      )}
+                      {/* Show committed bot avatars on tiles during 'showing' phase */}
+                      {isShowingCommits && (
+                        <div className="absolute inset-0 flex items-center justify-center gap-0.5">
+                          {committedBots.slice(0, 3).map((bot, idx) => (
+                            <div 
+                              key={bot.id}
+                              className={`w-6 h-6 rounded text-sm flex items-center justify-center border ${
+                                hasMultipleBots ? 'border-red-400' : 'border-blue-400'
+                              }`}
+                              style={{ 
+                                backgroundColor: AVATAR_COLORS[bot.avatar],
+                                transform: hasMultipleBots ? `translateX(${(idx - 1) * 8}px)` : 'none',
+                                zIndex: idx,
+                              }}
+                            >
+                              {bot.avatar}
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -701,16 +769,40 @@ export default function MatchFloorLava() {
                 
                 if (bot.eliminated && !justElim) return null;
                 
+                // During 'showing' stage of resolve, bots stay at their PRE positions
+                // During 'moving' and 'eliminating', they're at committed positions
+                let displayCol = bot.col;
+                let displayRow = bot.row;
+                
+                if (game.phase === 'resolve' && bot.preCol !== null && bot.preRow !== null) {
+                  if (resolveStage === 'showing') {
+                    // Stay at old position during first 3 seconds
+                    displayCol = bot.preCol;
+                    displayRow = bot.preRow;
+                  } else {
+                    // Move to committed position
+                    displayCol = bot.committedCol ?? bot.col;
+                    displayRow = bot.committedRow ?? bot.row;
+                  }
+                }
+                
+                // Check if this bot is in a collision (for stacking visual)
+                const collision = game.collisions.find(c => c.botIds.includes(bot.id));
+                const collisionIndex = collision ? collision.botIds.indexOf(bot.id) : 0;
+                const stackOffset = collision && resolveStage !== 'showing' ? collisionIndex * 12 : 0;
+                
                 return (
                   <div
                     key={bot.id}
-                    className={`absolute transition-all duration-200 ease-out ${
-                      justElim ? 'animate-pulse opacity-50' : ''
+                    className={`absolute transition-all ease-out ${
+                      resolveStage === 'showing' ? 'duration-200' : 'duration-700'
+                    } ${
+                      justElim && resolveStage === 'eliminating' ? 'animate-pulse opacity-30 scale-75' : ''
                     }`}
                     style={{
-                      left: bot.col * CELL + CELL / 2 - 32,
-                      top: bot.row * CELL + CELL / 2 - 32,
-                      zIndex: bot.row + 10,
+                      left: displayCol * CELL + CELL / 2 - 32 + stackOffset,
+                      top: displayRow * CELL + CELL / 2 - 32 - stackOffset,
+                      zIndex: displayRow + 10 + collisionIndex,
                     }}
                   >
                     {/* Speech bubble */}

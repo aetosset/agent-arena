@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import MatchFloorLava from '@/components/MatchFloorLava';
-import MatchFloorLavaMobile from '@/components/MatchFloorLavaMobile';
+import MatchFloorLavaMobileHorizontal from '@/components/MatchFloorLavaMobileHorizontal';
 
-export default function FloorLavaPage() {
+export default function FloorLavaHorizontalPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -17,7 +17,6 @@ export default function FloorLavaPage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Prevent hydration mismatch - show nothing until mounted
   if (!mounted) {
     return (
       <div className="min-h-screen bg-[var(--color-bg)]">
@@ -32,7 +31,7 @@ export default function FloorLavaPage() {
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
       <Header />
-      {isMobile ? <MatchFloorLavaMobile /> : <MatchFloorLava />}
+      {isMobile ? <MatchFloorLavaMobileHorizontal /> : <MatchFloorLava />}
     </div>
   );
 }
