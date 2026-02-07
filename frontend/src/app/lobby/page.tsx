@@ -148,22 +148,22 @@ export default function LobbyPage() {
           <div className="bg-[#111] rounded-xl border border-[#00ff00]/30 overflow-hidden">
             {/* Header */}
             <div className="p-6 border-b border-gray-800">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <span className="text-4xl">{GAME_ICONS[currentGame.id] || '🎮'}</span>
-                  <div>
-                    <h2 className="text-2xl font-bold">{currentGame.name}</h2>
-                    <p className="text-gray-500">{currentGame.description}</p>
-                  </div>
+              {/* Icon + Title row */}
+              <div className="flex items-center gap-4 mb-4">
+                <span className="text-4xl">{GAME_ICONS[currentGame.id] || '🎮'}</span>
+                <div>
+                  <h2 className="text-2xl font-bold">{currentGame.name}</h2>
+                  <p className="text-gray-500">{currentGame.description}</p>
                 </div>
-                <Link
-                  href={DEMO_ROUTES[currentGame.id] || '/'}
-                  className="flex items-center gap-2 px-5 py-3 bg-[#00ff00] text-black font-bold rounded-lg hover:bg-[#00cc00] transition-colors"
-                >
-                  <Play className="w-4 h-4" />
-                  Watch Demo
-                </Link>
               </div>
+              {/* CTA Button - below title on all screens */}
+              <Link
+                href={DEMO_ROUTES[currentGame.id] || '/'}
+                className="inline-flex items-center gap-2 px-5 py-3 bg-[#00ff00] text-black font-bold rounded-lg hover:bg-[#00cc00] transition-colors"
+              >
+                <Play className="w-4 h-4" />
+                Watch Demo
+              </Link>
             </div>
 
             {/* Queue Status */}
