@@ -426,7 +426,7 @@ export default function MatchFloorLava() {
             }
           }
           
-          // Convert 50% of safe tiles to lava (THE FIX!)
+          // Convert 50% of safe tiles to lava
           const toConvert = Math.max(1, Math.floor(safeTiles.length * 0.5));
           for (let i = 0; i < toConvert && safeTiles.length > 0; i++) {
             const idx = Math.floor(Math.random() * safeTiles.length);
@@ -435,15 +435,44 @@ export default function MatchFloorLava() {
             safeTiles.splice(idx, 1);
           }
           
-          // Reset bot states for new round (using movedBots which has updated positions/eliminations)
-          const newBots = movedBots.map(bot => ({
-            ...bot,
-            eliminatedThisRound: false,
-            committedCol: null,
-            committedRow: null,
-            preCol: null,
-            preRow: null,
-          }));
+          // safeTiles now contains only remaining safe tiles after lava spread
+          // Check if any alive bot is now on lava - teleport them to a safe tile
+          const newBots = movedBots.map(bot => {
+            if (bot.eliminated) return {
+              ...bot,
+              eliminatedThisRound: false,
+              committedCol: null,
+              committedRow: null,
+              preCol: null,
+              preRow: null,
+            };
+            
+            // Check if bot's current tile is now lava
+            if (newGrid[bot.row]?.[bot.col] && safeTiles.length > 0) {
+              // Teleport to a random safe tile
+              const randomSafe = safeTiles[Math.floor(Math.random() * safeTiles.length)];
+              return {
+                ...bot,
+                col: randomSafe.x,
+                row: randomSafe.y,
+                eliminatedThisRound: false,
+                committedCol: null,
+                committedRow: null,
+                preCol: null,
+                preRow: null,
+              };
+            }
+            
+            // Bot is on safe tile, just reset state
+            return {
+              ...bot,
+              eliminatedThisRound: false,
+              committedCol: null,
+              committedRow: null,
+              preCol: null,
+              preRow: null,
+            };
+          });
           
           // Check if game is over (1 or fewer bots alive)
           const stillAlive = newBots.filter(b => !b.eliminated);

@@ -398,14 +398,43 @@ export default function MatchFloorLavaMobileHorizontal() {
             safeTiles.splice(idx, 1);
           }
           
-          const newBots = movedBots.map(bot => ({
-            ...bot,
-            eliminatedThisRound: false,
-            committedCol: null,
-            committedRow: null,
-            preCol: null,
-            preRow: null,
-          }));
+          // Check if any alive bot is now on lava - teleport them to a safe tile
+          const newBots = movedBots.map(bot => {
+            if (bot.eliminated) return {
+              ...bot,
+              eliminatedThisRound: false,
+              committedCol: null,
+              committedRow: null,
+              preCol: null,
+              preRow: null,
+            };
+            
+            // Check if bot's current tile is now lava
+            if (newGrid[bot.row]?.[bot.col] && safeTiles.length > 0) {
+              // Teleport to a random safe tile
+              const randomSafe = safeTiles[Math.floor(Math.random() * safeTiles.length)];
+              return {
+                ...bot,
+                col: randomSafe.x,
+                row: randomSafe.y,
+                eliminatedThisRound: false,
+                committedCol: null,
+                committedRow: null,
+                preCol: null,
+                preRow: null,
+              };
+            }
+            
+            // Bot is on safe tile, just reset state
+            return {
+              ...bot,
+              eliminatedThisRound: false,
+              committedCol: null,
+              committedRow: null,
+              preCol: null,
+              preRow: null,
+            };
+          });
           
           const stillAlive = newBots.filter(b => !b.eliminated);
           if (stillAlive.length <= 1 || safeTiles.length === 0) {
