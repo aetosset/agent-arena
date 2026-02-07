@@ -156,10 +156,10 @@ export default function LobbyPage() {
                   <p className="text-gray-500">{currentGame.description}</p>
                 </div>
               </div>
-              {/* CTA Button - below title on all screens */}
+              {/* CTA Button - below title, full width */}
               <Link
                 href={DEMO_ROUTES[currentGame.id] || '/'}
-                className="inline-flex items-center gap-2 px-5 py-3 bg-[#00ff00] text-black font-bold rounded-lg hover:bg-[#00cc00] transition-colors"
+                className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-[#00ff00] text-black font-bold rounded-lg hover:bg-[#00cc00] transition-colors"
               >
                 <Play className="w-4 h-4" />
                 Watch Demo
