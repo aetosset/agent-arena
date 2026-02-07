@@ -266,9 +266,42 @@ export default function MatchFloorLavaMobileHorizontal() {
             }
           }
           
+          // 8-direction adjacency offsets (including diagonals)
+          const ADJACENT_OFFSETS = [
+            [-1, -1], [0, -1], [1, -1],
+            [-1,  0],          [1,  0],
+            [-1,  1], [0,  1], [1,  1],
+          ];
+          
+          // Each bot commits to current tile OR adjacent safe tile
+          // Exception: if on "island" (all 8 adjacent are lava), can teleport anywhere
           const newBots = g.bots.map(bot => {
             if (bot.eliminated) return bot;
-            const tile = safeTiles[Math.floor(Math.random() * safeTiles.length)];
+            
+            const validTiles: { x: number; y: number }[] = [];
+            
+            // Current tile is valid if safe
+            if (!g.grid[bot.row]?.[bot.col]) {
+              validTiles.push({ x: bot.col, y: bot.row });
+            }
+            
+            // Check all 8 adjacent tiles
+            for (const [dx, dy] of ADJACENT_OFFSETS) {
+              const nx = bot.col + dx;
+              const ny = bot.row + dy;
+              if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && !g.grid[ny]?.[nx]) {
+                validTiles.push({ x: nx, y: ny });
+              }
+            }
+            
+            // Island: no valid adjacent, teleport anywhere
+            if (validTiles.length === 0) {
+              const tile = safeTiles[Math.floor(Math.random() * safeTiles.length)];
+              return { ...bot, committedCol: tile.x, committedRow: tile.y };
+            }
+            
+            // Normal: pick from valid adjacent
+            const tile = validTiles[Math.floor(Math.random() * validTiles.length)];
             return { ...bot, committedCol: tile.x, committedRow: tile.y };
           });
           
