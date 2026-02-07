@@ -284,6 +284,28 @@ export class FloorLavaMatch implements GameMatch {
     return true;
   }
 
+  // GameMatch interface - handle actions from orchestrator
+  handleAction(playerId: string, action: { type: string; [key: string]: any }): { success: boolean; error?: string } {
+    if (action.type === 'chat') {
+      // Broadcast chat message
+      this.addEvent('chat_message', { 
+        playerId, 
+        playerName: this.players.find(p => p.id === playerId)?.name || 'Unknown',
+        message: action.message 
+      });
+      return { success: true };
+    }
+    
+    if (action.type === 'move' || action.type === 'commit_move') {
+      const success = this.submitMove(playerId, action.x, action.y);
+      return success 
+        ? { success: true } 
+        : { success: false, error: 'Invalid move or wrong phase' };
+    }
+    
+    return { success: false, error: `Unknown action type: ${action.type}` };
+  }
+
   private resolveRound(): void {
     this.state.phase = 'resolve';
     this.state.phaseEndsAt = Date.now() + this.config.resolveDuration;

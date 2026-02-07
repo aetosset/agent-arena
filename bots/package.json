@@ -1,0 +1,18 @@
+{
+  "name": "scrapyard-bots",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "launch": "tsx launch-16.ts",
+    "single": "tsx floorlava-agent.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
