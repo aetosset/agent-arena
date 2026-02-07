@@ -60,7 +60,7 @@ function playEliminationSound() {
 }
 
 // ========== TYPES ==========
-type Phase = 'deliberation' | 'commit' | 'resolve' | 'finished';
+type Phase = 'walking' | 'deliberation' | 'reveal' | 'resolve' | 'finished';
 
 interface Bot {
   id: string;
@@ -89,7 +89,8 @@ interface CollisionInfo {
   col: number;
   row: number;
   botIds: string[];
-  loserId: string;
+  loserIds: string[];
+  winnerId: string;
 }
 
 interface Game {
@@ -110,9 +111,10 @@ const ROWS = 8;
 const CELL = 25; // Small cells to fit ~350px width (14*25=350)
 
 const PHASE_MS = {
-  deliberation: 15000,
-  commit: 5000,
-  resolve: 9000,
+  walking: 8000,
+  deliberation: 10000,
+  reveal: 5000,
+  resolve: 3000,
 };
 
 const AVATAR_COLORS: Record<string, string> = {
@@ -197,7 +199,7 @@ function createGame(): Game {
   }
   
   return {
-    phase: 'deliberation',
+    phase: 'walking',
     round: 1,
     startTime: Date.now(),
     bots: createBots(),
