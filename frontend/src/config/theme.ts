@@ -49,7 +49,7 @@ const THEMES: Record<ThemeName, Theme> = {
       textSecondary: '#9ca3af',
       textMuted: '#6b7280',
     },
-    logo: '/logos/logo-amber.png',
+    logo: '/logos/logo-amber.jpg',
   },
   
   green: {
@@ -67,7 +67,7 @@ const THEMES: Record<ThemeName, Theme> = {
       textSecondary: '#9ca3af',
       textMuted: '#6b7280',
     },
-    logo: '/logos/logo-green.png',
+    logo: '/logos/logo-green.jpg',
   },
   
   blue: {
@@ -85,7 +85,7 @@ const THEMES: Record<ThemeName, Theme> = {
       textSecondary: '#9ca3af',
       textMuted: '#6b7280',
     },
-    logo: '/logos/logo-blue.png',
+    logo: '/logos/logo-blue.jpg',
   },
   
   pink: {
@@ -103,7 +103,7 @@ const THEMES: Record<ThemeName, Theme> = {
       textSecondary: '#9ca3af',
       textMuted: '#6b7280',
     },
-    logo: '/logos/logo-pink.png',
+    logo: '/logos/logo-pink.jpg',
   },
   
   white: {
@@ -121,7 +121,7 @@ const THEMES: Record<ThemeName, Theme> = {
       textSecondary: '#9ca3af',
       textMuted: '#6b7280',
     },
-    logo: '/logos/logo-white.png',
+    logo: '/logos/logo-white.jpg',
   },
 };
 
