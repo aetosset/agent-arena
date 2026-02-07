@@ -492,9 +492,53 @@ export default function MatchFloorLavaMobileHorizontal() {
     });
   }
 
+  // Find the winner
+  const winner = game.phase === 'finished' ? game.bots.find(b => !b.eliminated) : null;
+
   // ============ MOBILE HORIZONTAL RENDER ============
   return (
-    <div className="h-screen bg-[#0a0a0a] text-white flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#0a0a0a] text-white flex flex-col overflow-hidden relative">
+      {/* END SCREEN OVERLAY */}
+      {game.phase === 'finished' && (
+        <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="text-center p-6 bg-[#111] rounded-xl border border-[var(--color-primary)]/30 shadow-2xl w-full max-w-sm">
+            <div className="text-5xl mb-3">🏆</div>
+            <h1 className="text-2xl font-bold text-[var(--color-primary)] mb-1">MATCH COMPLETE</h1>
+            <p className="text-gray-400 text-sm mb-4">Round {game.round} • {game.bots.filter(b => b.eliminated).length} eliminated</p>
+            
+            {winner ? (
+              <div className="mb-4">
+                <div className="text-gray-500 text-xs mb-2">WINNER</div>
+                <div className="flex items-center justify-center gap-3">
+                  <div 
+                    className="w-14 h-14 rounded-lg text-3xl flex items-center justify-center border-2 border-[var(--color-primary)] shadow-[0_0_15px_rgba(34,197,94,0.5)]"
+                    style={{ backgroundColor: AVATAR_COLORS[winner.avatar] }}
+                  >
+                    {winner.avatar}
+                  </div>
+                  <div className="text-left">
+                    <div className="text-lg font-bold">{winner.name}</div>
+                    <div className="text-[var(--color-primary)] font-bold text-sm">$5.00 Prize</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-4">
+                <div className="text-gray-500 text-xs mb-1">NO SURVIVORS</div>
+                <div className="text-lg text-red-400">Everyone got scrapped! 💀</div>
+              </div>
+            )}
+            
+            <button 
+              onClick={() => window.location.reload()}
+              className="w-full px-4 py-2.5 bg-[var(--color-primary)] text-black font-bold rounded-lg text-sm"
+            >
+              WATCH ANOTHER MATCH
+            </button>
+          </div>
+        </div>
+      )}
+      
       {/* Compact Banner */}
       <div className="p-2 border-b border-gray-800 flex-shrink-0">
         <div className="flex items-center justify-between">
@@ -650,19 +694,35 @@ export default function MatchFloorLavaMobileHorizontal() {
                       🔥
                     </div>
                   )}
-                  {/* Show committed bot indicators during 'showing' phase */}
-                  {isShowingCommits && (
+                  {/* Show committed bot avatar during 'showing' phase - single bot */}
+                  {isShowingCommits && !hasMultipleBots && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      {committedBots.slice(0, 2).map((bot, idx) => (
+                      <div 
+                        className="w-7 h-7 rounded text-lg flex items-center justify-center opacity-40"
+                        style={{ backgroundColor: AVATAR_COLORS[committedBots[0].avatar] }}
+                      >
+                        {committedBots[0].avatar}
+                      </div>
+                    </div>
+                  )}
+                  {/* COLLISION: Show ALL bot icons ABOVE the tile */}
+                  {isShowingCommits && hasMultipleBots && (
+                    <div 
+                      className="absolute left-1/2 flex items-end justify-center pointer-events-none"
+                      style={{ 
+                        bottom: '100%', 
+                        transform: 'translateX(-50%)',
+                        marginBottom: '2px',
+                      }}
+                    >
+                      {committedBots.map((bot, idx) => (
                         <div 
                           key={bot.id}
-                          className={`w-4 h-4 rounded text-[8px] flex items-center justify-center border ${
-                            hasMultipleBots ? 'border-red-400' : 'border-blue-400'
-                          }`}
+                          className="w-8 h-8 rounded text-xl flex items-center justify-center opacity-60 border border-red-500 shadow-md"
                           style={{ 
                             backgroundColor: AVATAR_COLORS[bot.avatar],
-                            transform: hasMultipleBots ? `translateX(${(idx - 0.5) * 6}px)` : 'none',
-                            zIndex: idx,
+                            marginLeft: idx > 0 ? '-4px' : '0',
+                            zIndex: committedBots.length - idx,
                           }}
                         >
                           {bot.avatar}

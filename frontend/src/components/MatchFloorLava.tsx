@@ -528,20 +528,76 @@ export default function MatchFloorLava() {
     });
   }
 
+  // Find the winner (last bot standing)
+  const winner = game.phase === 'finished' ? game.bots.find(b => !b.eliminated) : null;
+
   // ============ RENDER ============
   return (
-    <div className="h-screen bg-[#0a0a0a] text-white flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#0a0a0a] text-white flex flex-col overflow-hidden relative">
+      {/* END SCREEN OVERLAY */}
+      {game.phase === 'finished' && (
+        <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center">
+          <div className="text-center p-8 bg-[#111] rounded-2xl border border-[var(--color-primary)]/30 shadow-2xl max-w-md mx-4">
+            <div className="text-6xl mb-4">🏆</div>
+            <h1 className="text-3xl font-bold text-[var(--color-primary)] mb-2">MATCH COMPLETE</h1>
+            <p className="text-gray-400 mb-6">Round {game.round} • {game.bots.filter(b => b.eliminated).length} bots eliminated</p>
+            
+            {winner ? (
+              <div className="mb-6">
+                <div className="text-gray-500 text-sm mb-2">WINNER</div>
+                <div className="flex items-center justify-center gap-4">
+                  <div 
+                    className="w-20 h-20 rounded-xl text-5xl flex items-center justify-center border-2 border-[var(--color-primary)] shadow-[0_0_20px_rgba(34,197,94,0.5)]"
+                    style={{ backgroundColor: AVATAR_COLORS[winner.avatar] }}
+                  >
+                    {winner.avatar}
+                  </div>
+                  <div className="text-left">
+                    <div className="text-2xl font-bold">{winner.name}</div>
+                    <div className="text-[var(--color-primary)] font-bold">$5.00 Prize</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-6">
+                <div className="text-gray-500 text-sm mb-2">NO SURVIVORS</div>
+                <div className="text-xl text-red-400">Everyone got scrapped! 💀</div>
+              </div>
+            )}
+            
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-[var(--color-primary)] text-black font-bold rounded-lg hover:opacity-90 transition-opacity"
+            >
+              WATCH ANOTHER MATCH
+            </button>
+          </div>
+        </div>
+      )}
+      
       {/* Main Layout - FIXED HEIGHT, NO SCROLL */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar - Bot Roster */}
         <div className="w-64 border-r border-gray-800 flex flex-col bg-[#0a0a0a] overflow-hidden">
           <div className="p-4 border-b border-gray-800 flex-shrink-0">
-            <div className="text-white text-sm font-bold">COMPETITORS</div>
+            <div className="text-white text-sm font-bold">MATCH INFO</div>
             <div className="text-gray-600 text-xs mt-1">{game.bots.length} bots • {aliveBots.length} alive</div>
+            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-800">
+              <span className="text-gray-500 text-xs">Safe Tiles</span>
+              <span className="text-[var(--color-primary)] font-bold text-sm">{safeTileCount}</span>
+            </div>
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-gray-500 text-xs">Prize Pool</span>
+              <span className="text-[var(--color-primary)] font-bold text-sm">$5.00</span>
+            </div>
           </div>
         
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {game.bots.map(bot => {
+            {/* Sort bots: alive first, then eliminated */}
+            {[...game.bots].sort((a, b) => {
+              if (a.eliminated === b.eliminated) return 0;
+              return a.eliminated ? 1 : -1;
+            }).map(bot => {
               const isElim = bot.eliminated;
               const justElim = bot.eliminatedThisRound;
               const isInCollision = game.collisions.some(c => c.botIds.includes(bot.id));
@@ -593,24 +649,6 @@ export default function MatchFloorLava() {
             })}
           </div>
 
-          {/* Match Info */}
-          <div className="p-4 border-t border-gray-800 flex-shrink-0">
-            <div className="text-xs text-gray-600 mb-2">MATCH INFO</div>
-            <div className="space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Players</span>
-                <span className="text-white">{aliveBots.length} / {game.bots.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Safe Tiles</span>
-                <span className="text-white">{safeTileCount}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Prize Pool</span>
-                <span className="text-[var(--color-primary)] font-bold">$5.00</span>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Main Content - NO SCROLL */}
@@ -736,19 +774,35 @@ export default function MatchFloorLava() {
                           💥
                         </div>
                       )}
-                      {/* Show committed bot avatars on tiles during 'showing' phase */}
-                      {isShowingCommits && (
-                        <div className="absolute inset-0 flex items-center justify-center gap-0.5">
-                          {committedBots.slice(0, 3).map((bot, idx) => (
+                      {/* Show committed bot avatar on tile during 'showing' phase */}
+                      {isShowingCommits && !hasMultipleBots && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div 
+                            className="w-14 h-14 rounded-lg text-4xl flex items-center justify-center opacity-40"
+                            style={{ backgroundColor: AVATAR_COLORS[committedBots[0].avatar] }}
+                          >
+                            {committedBots[0].avatar}
+                          </div>
+                        </div>
+                      )}
+                      {/* COLLISION: Show ALL bot icons ABOVE the tile, bigger and spread out */}
+                      {isShowingCommits && hasMultipleBots && (
+                        <div 
+                          className="absolute left-1/2 flex items-end justify-center pointer-events-none"
+                          style={{ 
+                            bottom: '100%', 
+                            transform: 'translateX(-50%)',
+                            marginBottom: '4px',
+                          }}
+                        >
+                          {committedBots.map((bot, idx) => (
                             <div 
                               key={bot.id}
-                              className={`w-6 h-6 rounded text-sm flex items-center justify-center border ${
-                                hasMultipleBots ? 'border-red-400' : 'border-blue-400'
-                              }`}
+                              className="w-16 h-16 rounded-xl text-4xl flex items-center justify-center opacity-60 border-2 border-red-500 shadow-lg"
                               style={{ 
                                 backgroundColor: AVATAR_COLORS[bot.avatar],
-                                transform: hasMultipleBots ? `translateX(${(idx - 1) * 8}px)` : 'none',
-                                zIndex: idx,
+                                marginLeft: idx > 0 ? '-8px' : '0',
+                                zIndex: committedBots.length - idx,
                               }}
                             >
                               {bot.avatar}
