@@ -36,19 +36,19 @@ export default function Lobby({ queueState, connected, onStartDemo }: LobbyProps
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-sm border-b border-[#00ff00]/20">
+      <header className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-sm border-b border-[var(--color-primary)]/20">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-[#00ff00] rotate-45 flex items-center justify-center">
+            <div className="w-7 h-7 bg-[var(--color-primary)] rotate-45 flex items-center justify-center">
               <span className="text-black font-bold text-xs -rotate-45">◆</span>
             </div>
             <span className="font-bold text-lg tracking-tight">SCRAPYARD</span>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 border border-[#00ff00]/50 rounded-full">
+          <div className="flex items-center gap-2 px-3 py-1.5 border border-[var(--color-primary)]/50 rounded-full">
             {connected ? (
               <>
-                <Wifi className="w-4 h-4 text-[#00ff00]" />
-                <span className="text-[#00ff00] text-sm font-medium">LIVE</span>
+                <Wifi className="w-4 h-4 text-[var(--color-primary)]" />
+                <span className="text-[var(--color-primary)] text-sm font-medium">LIVE</span>
               </>
             ) : (
               <>
@@ -64,10 +64,10 @@ export default function Lobby({ queueState, connected, onStartDemo }: LobbyProps
         {/* Hero Section */}
         <div className="text-center py-8">
           <div className="inline-block mb-4">
-            <Wifi className="w-16 h-16 text-[#00ff00] animate-pulse" />
+            <Wifi className="w-16 h-16 text-[var(--color-primary)] animate-pulse" />
           </div>
           <h1 className="text-3xl font-bold mb-3">
-            <span className="text-[#00ff00]">PRICE</span> WARS
+            <span className="text-[var(--color-primary)]">PRICE</span> WARS
           </h1>
           <p className="text-gray-400 text-sm max-w-xs mx-auto">
             Watch AI agents battle to guess product prices. The closest survive. The furthest are eliminated.
@@ -75,11 +75,11 @@ export default function Lobby({ queueState, connected, onStartDemo }: LobbyProps
         </div>
 
         {/* Queue Status */}
-        <div className="card p-4 border border-[#00ff00]/30">
+        <div className="card p-4 border border-[var(--color-primary)]/30">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-[#00ff00]" />
-              <span className="text-[#00ff00] font-bold text-sm tracking-wider">QUEUE STATUS</span>
+              <Users className="w-5 h-5 text-[var(--color-primary)]" />
+              <span className="text-[var(--color-primary)] font-bold text-sm tracking-wider">QUEUE STATUS</span>
             </div>
             <span className="font-mono text-lg">
               <span className="text-white">{queueCount}</span>
@@ -88,7 +88,7 @@ export default function Lobby({ queueState, connected, onStartDemo }: LobbyProps
           </div>
           <div className="h-3 bg-[#1a1a1a] rounded-full overflow-hidden mb-3">
             <div 
-              className="h-full bg-gradient-to-r from-[#00cc00] to-[#00ff00] rounded-full transition-all duration-500"
+              className="h-full bg-gradient-to-r from-[var(--color-primary-dim)] to-[var(--color-primary)] rounded-full transition-all duration-500"
               style={{ width: `${(queueCount / 8) * 100}%` }}
             />
           </div>
@@ -102,13 +102,13 @@ export default function Lobby({ queueState, connected, onStartDemo }: LobbyProps
 
         {/* Action Buttons */}
         <div className="space-y-3">
-          <Link href="/register" className="block w-full py-3 bg-[#00ff00] text-black font-bold text-center rounded-lg hover:bg-[#00cc00] transition-colors">
+          <Link href="/register" className="block w-full py-3 bg-[var(--color-primary)] text-black font-bold text-center rounded-lg hover:bg-[var(--color-primary-dim)] transition-colors">
             <Bot className="inline w-5 h-5 mr-2" />
             Register Your Bot
           </Link>
           <button 
             onClick={onStartDemo}
-            className="w-full py-3 bg-transparent border border-[#00ff00]/50 text-[#00ff00] font-bold text-center rounded-lg hover:bg-[#00ff00]/10 transition-colors"
+            className="w-full py-3 bg-transparent border border-[var(--color-primary)]/50 text-[var(--color-primary)] font-bold text-center rounded-lg hover:bg-[var(--color-primary)]/10 transition-colors"
           >
             Start Demo Match
           </button>
@@ -121,7 +121,7 @@ export default function Lobby({ queueState, connected, onStartDemo }: LobbyProps
         {recentMatches.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[#00ff00] font-bold text-sm tracking-wider">RECENT MATCHES</h2>
+              <h2 className="text-[var(--color-primary)] font-bold text-sm tracking-wider">RECENT MATCHES</h2>
               <Link href="/history" className="text-gray-500 text-xs flex items-center gap-1 hover:text-white transition-colors">
                 View All <ArrowRight className="w-3 h-3" />
               </Link>
@@ -131,11 +131,11 @@ export default function Lobby({ queueState, connected, onStartDemo }: LobbyProps
                 <Link 
                   key={match.id}
                   href={`/match/${match.id}`}
-                  className="block card p-3 border border-gray-800 hover:border-[#00ff00]/30 transition-colors"
+                  className="block card p-3 border border-gray-800 hover:border-[var(--color-primary)]/30 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Trophy className="w-4 h-4 text-[#00ff00]" />
+                      <Trophy className="w-4 h-4 text-[var(--color-primary)]" />
                       <span className="font-medium">{match.winner?.name || 'Unknown'}</span>
                       <span className="text-gray-500 text-xs">won</span>
                     </div>
@@ -154,7 +154,7 @@ export default function Lobby({ queueState, connected, onStartDemo }: LobbyProps
         {leaderboard.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[#00ff00] font-bold text-sm tracking-wider">TOP BOTS</h2>
+              <h2 className="text-[var(--color-primary)] font-bold text-sm tracking-wider">TOP BOTS</h2>
               <Link href="/leaderboard" className="text-gray-500 text-xs flex items-center gap-1 hover:text-white transition-colors">
                 Full Leaderboard <ArrowRight className="w-3 h-3" />
               </Link>
@@ -185,7 +185,7 @@ export default function Lobby({ queueState, connected, onStartDemo }: LobbyProps
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a] border-t border-[#00ff00]/20 pb-safe">
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a] border-t border-[var(--color-primary)]/20 pb-safe">
         <div className="flex justify-around py-2">
           <NavItem icon="🏠" label="Arena" active />
           <NavItem icon="📊" label="Board" href="/leaderboard" />
@@ -199,7 +199,7 @@ export default function Lobby({ queueState, connected, onStartDemo }: LobbyProps
 
 function NavItem({ icon, label, active = false, href = '#' }: { icon: string; label: string; active?: boolean; href?: string }) {
   const content = (
-    <div className={`flex flex-col items-center gap-1 px-4 py-1 ${active ? 'text-[#00ff00]' : 'text-gray-500'}`}>
+    <div className={`flex flex-col items-center gap-1 px-4 py-1 ${active ? 'text-[var(--color-primary)]' : 'text-gray-500'}`}>
       <span className="text-xl">{icon}</span>
       <span className="text-[10px] font-bold tracking-wider">{label}</span>
     </div>

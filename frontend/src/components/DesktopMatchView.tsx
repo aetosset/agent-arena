@@ -263,11 +263,11 @@ export default function DesktopMatchView({
   if (phase === 'finished' && winner) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-4">
-        <Trophy className="w-24 h-24 text-[#00ff00] mb-4 animate-bounce" />
-        <h1 className="text-4xl font-bold text-[#00ff00] mb-2">WINNER!</h1>
+        <Trophy className="w-24 h-24 text-[var(--color-primary)] mb-4 animate-bounce" />
+        <h1 className="text-4xl font-bold text-[var(--color-primary)] mb-2">WINNER!</h1>
         <div className="text-6xl mb-4">{winner.avatar || '🤖'}</div>
         <div className="text-2xl font-bold mb-8">{winner.name}</div>
-        <Link href="/" className="px-6 py-3 bg-[#00ff00] text-black font-bold rounded-lg">
+        <Link href="/" className="px-6 py-3 bg-[var(--color-primary)] text-black font-bold rounded-lg">
           Back to Lobby
         </Link>
       </div>
@@ -277,11 +277,11 @@ export default function DesktopMatchView({
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       {/* Header */}
-      <header className="border-b border-[#00ff00]/20 px-6 py-3">
+      <header className="border-b border-[var(--color-primary)]/20 px-6 py-3">
         <div className="flex items-center justify-between max-w-[1800px] mx-auto">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-[#00ff00] rotate-45 flex items-center justify-center">
+              <div className="w-8 h-8 bg-[var(--color-primary)] rotate-45 flex items-center justify-center">
                 <span className="text-black font-bold text-sm -rotate-45">◆</span>
               </div>
               <span className="font-bold text-xl tracking-tight">SCRAPYARD</span>
@@ -303,7 +303,7 @@ export default function DesktopMatchView({
                 {[1,2,3,4].map(r => (
                   <div 
                     key={r} 
-                    className={`w-6 h-2 rounded-full ${r <= round ? 'bg-[#00ff00]' : 'bg-gray-700'}`}
+                    className={`w-6 h-2 rounded-full ${r <= round ? 'bg-[var(--color-primary)]' : 'bg-gray-700'}`}
                   />
                 ))}
               </div>
@@ -311,17 +311,17 @@ export default function DesktopMatchView({
 
             {/* Timer */}
             {phase === 'deliberation' && (
-              <div className="font-mono text-2xl font-bold text-[#00ff00]">
+              <div className="font-mono text-2xl font-bold text-[var(--color-primary)]">
                 {formatTime(timer)}
               </div>
             )}
 
             {/* Connection status */}
-            <div className="flex items-center gap-2 px-3 py-1.5 border border-[#00ff00]/50 rounded-full">
+            <div className="flex items-center gap-2 px-3 py-1.5 border border-[var(--color-primary)]/50 rounded-full">
               {connected ? (
                 <>
-                  <span className="w-2 h-2 bg-[#00ff00] rounded-full animate-pulse" />
-                  <span className="text-[#00ff00] text-sm font-medium">LIVE</span>
+                  <span className="w-2 h-2 bg-[var(--color-primary)] rounded-full animate-pulse" />
+                  <span className="text-[var(--color-primary)] text-sm font-medium">LIVE</span>
                 </>
               ) : (
                 <>
@@ -338,7 +338,7 @@ export default function DesktopMatchView({
         {/* Main Content */}
         <div className="flex-1 p-6">
           {/* Item Display - Fixed Top Row */}
-          <div className="mb-4 p-4 bg-[#111] rounded-lg border border-[#00ff00]/20">
+          <div className="mb-4 p-4 bg-[#111] rounded-lg border border-[var(--color-primary)]/20">
             <div className="flex items-center gap-6">
               <div className="w-24 h-24 bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg flex items-center justify-center border border-gray-700 overflow-hidden">
                 {item?.imageUrls?.[0] ? (
@@ -352,14 +352,14 @@ export default function DesktopMatchView({
                 )}
               </div>
               <div className="flex-1">
-                <span className="text-[#00ff00] text-xs font-bold tracking-wider">ITEM #{round}</span>
+                <span className="text-[var(--color-primary)] text-xs font-bold tracking-wider">ITEM #{round}</span>
                 <h2 className="text-2xl font-bold mt-1">{item?.title || 'Mystery Item'}</h2>
                 <p className="text-gray-500 text-sm mt-1">{item?.category || 'UNKNOWN CATEGORY'}</p>
               </div>
               {(phase === 'price-reveal' || phase === 'elimination') && actualPrice > 0 && (
                 <div className="text-right">
                   <span className="text-gray-500 text-xs">ACTUAL PRICE</span>
-                  <div className="text-4xl font-bold text-[#00ff00]">
+                  <div className="text-4xl font-bold text-[var(--color-primary)]">
                     ${(actualPrice / 100).toFixed(2)}
                   </div>
                 </div>
@@ -408,7 +408,7 @@ export default function DesktopMatchView({
                   {/* Speech Bubble */}
                   {bubble && (
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-20 animate-fade-in whitespace-nowrap">
-                      <div className="bg-[#00ff00] text-black text-xs px-3 py-2 rounded-lg rounded-bl-none max-w-[200px]">
+                      <div className="bg-[var(--color-primary)] text-black text-xs px-3 py-2 rounded-lg rounded-bl-none max-w-[200px]">
                         <div className="font-bold text-[10px] mb-0.5">{bubble.botName}</div>
                         <div className="truncate">{bubble.message}</div>
                       </div>
@@ -442,7 +442,7 @@ export default function DesktopMatchView({
           {/* Bid Results - shown during reveal phases */}
           {(phase === 'bid-reveal' || phase === 'price-reveal' || phase === 'elimination') && bids.length > 0 && (
             <div className="mt-4 p-4 bg-[#111] rounded-lg border border-gray-800">
-              <div className="text-[#00ff00] text-xs font-bold tracking-wider mb-3">BID RESULTS</div>
+              <div className="text-[var(--color-primary)] text-xs font-bold tracking-wider mb-3">BID RESULTS</div>
               <div className="grid grid-cols-4 gap-3">
                 {bids.map((bid: any) => {
                   const isElim = eliminatedIds.includes(bid.botId);
@@ -475,7 +475,7 @@ export default function DesktopMatchView({
         {/* Chat Sidebar */}
         <div className="w-[320px] border-l border-gray-800 flex flex-col h-[calc(100vh-73px)]">
           <div className="p-4 border-b border-gray-800">
-            <div className="text-[#00ff00] text-xs font-bold tracking-wider">LIVE CHAT</div>
+            <div className="text-[var(--color-primary)] text-xs font-bold tracking-wider">LIVE CHAT</div>
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -486,7 +486,7 @@ export default function DesktopMatchView({
             ) : (
               chat.map((msg: any, idx: number) => (
                 <div key={idx} className="text-sm">
-                  <span className="text-[#00ff00] font-bold">{msg.botName}</span>
+                  <span className="text-[var(--color-primary)] font-bold">{msg.botName}</span>
                   <span className="text-gray-600 text-xs ml-2">
                     {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
@@ -504,9 +504,9 @@ export default function DesktopMatchView({
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Type a message..."
-                className="flex-1 bg-[#1a1a1a] border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#00ff00]/50"
+                className="flex-1 bg-[#1a1a1a] border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--color-primary)]/50"
               />
-              <button className="px-3 py-2 bg-[#00ff00] text-black rounded-lg hover:bg-[#00cc00]">
+              <button className="px-3 py-2 bg-[var(--color-primary)] text-black rounded-lg hover:bg-[var(--color-primary-dim)]">
                 <Send className="w-4 h-4" />
               </button>
             </div>
@@ -545,7 +545,7 @@ function ViewportBot({ bot, isEliminated, isActive, phase }: {
         className={`
           w-16 h-16 rounded-lg border-2 flex items-center justify-center text-3xl
           transition-all duration-200
-          ${isActive ? 'border-[#00ff00] shadow-[0_0_20px_rgba(0,255,0,0.4)]' : 'border-gray-600'}
+          ${isActive ? 'border-[var(--color-primary)] shadow-[0_0_20px_rgba(0,255,0,0.4)]' : 'border-gray-600'}
           ${isEliminated ? 'border-red-500 opacity-40 grayscale' : ''}
         `}
         style={{ backgroundColor: isEliminated ? 'rgba(239, 68, 68, 0.2)' : getBgColor(bot.avatar) }}

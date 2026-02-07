@@ -2,28 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 
+ * Theme CSS Variables
+ * These are set dynamically based on CURRENT_THEME in theme.ts
+ * Default values (green) shown here as fallback
+ */
 :root {
-  /* Core palette - cyberpunk green/black */
-  --color-bg: #0a0a0a;
-  --color-bg-elevated: #111111;
-  --color-bg-card: #161616;
-  --color-surface: #1a1a1a;
-  
-  /* Green accent - the signature color */
+  /* Primary accent - changes per theme */
   --color-primary: #00ff00;
   --color-primary-dim: #00cc00;
-  --color-primary-glow: rgba(0, 255, 0, 0.15);
+  --color-primary-glow: rgba(0, 255, 0, 0.1);
   --color-primary-border: rgba(0, 255, 0, 0.3);
   
-  /* Text */
-  --color-text: #ffffff;
-  --color-text-secondary: #a0a0a0;
-  --color-text-muted: #666666;
+  /* Background colors */
+  --color-bg: #0a0a0a;
+  --color-bg-alt: #0d0d0d;
+  --color-surface: #111111;
+  --color-border: #1f1f1f;
   
-  /* Status colors */
+  /* Text colors */
+  --color-text: #ffffff;
+  --color-text-secondary: #9ca3af;
+  --color-text-muted: #6b7280;
+  
+  /* Status colors (consistent across themes) */
   --color-danger: #ff3333;
   --color-warning: #ffaa00;
-  --color-success: #00ff00;
+  --color-success: var(--color-primary);
   
   /* Spacing */
   --spacing-xs: 4px;
@@ -48,8 +53,8 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Utility classes */
-.glow-green {
+/* Utility classes - all use CSS variables */
+.glow-primary {
   box-shadow: 0 0 20px var(--color-primary-glow), 
               0 0 40px var(--color-primary-glow),
               inset 0 0 20px var(--color-primary-glow);
@@ -89,20 +94,20 @@ body {
 }
 
 .badge-live {
-  background: rgba(0, 255, 0, 0.1);
+  background: var(--color-primary-glow);
   border: 1px solid var(--color-primary);
   color: var(--color-primary);
 }
 
 /* Card styles */
 .card {
-  background: var(--color-bg-card);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
 }
 
 .card-glow {
-  background: var(--color-bg-card);
+  background: var(--color-surface);
   border: 2px solid var(--color-primary);
   border-radius: 12px;
   box-shadow: 0 0 20px var(--color-primary-glow);
@@ -114,7 +119,7 @@ body {
   aspect-ratio: 1;
   border-radius: 12px;
   background: var(--color-surface);
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid var(--color-border);
   overflow: hidden;
   transition: all 0.3s ease;
 }
@@ -166,7 +171,7 @@ body {
 /* System feed */
 .system-feed {
   background: var(--color-surface);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 12px;
   font-family: 'SF Mono', 'Fira Code', monospace;
@@ -204,8 +209,8 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--color-bg-elevated);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
   padding: 8px 0;
   padding-bottom: max(8px, env(safe-area-inset-bottom));
 }

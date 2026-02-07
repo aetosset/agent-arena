@@ -58,13 +58,13 @@ export default function HistoryPage() {
               <Link 
                 key={match.id}
                 href={`/match/${match.id}`}
-                className="block bg-[#111] rounded-xl border border-gray-800 p-4 hover:border-[#00ff00]/30 transition-colors"
+                className="block bg-[#111] rounded-xl border border-gray-800 p-4 hover:border-[var(--color-primary)]/30 transition-colors"
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">🏆</span>
                     <span className="font-bold">{match.winner?.name || 'Unknown'}</span>
-                    <span className="text-[#00ff00] text-xs font-bold">WON</span>
+                    <span className="text-[var(--color-primary)] text-xs font-bold">WON</span>
                   </div>
                   <div className="text-gray-500 text-xs">
                     {match.endedAt ? formatTimeAgo(match.endedAt) : 'Just now'}
@@ -87,7 +87,7 @@ export default function HistoryPage() {
                     <div 
                       key={bot.id || idx}
                       className={`w-8 h-8 rounded bg-[#1a1a1a] flex items-center justify-center text-sm ${
-                        bot.id === match.winner?.id ? 'ring-2 ring-[#00ff00]' : ''
+                        bot.id === match.winner?.id ? 'ring-2 ring-[var(--color-primary)]' : ''
                       }`}
                     >
                       {bot.avatar || '🤖'}

@@ -100,7 +100,7 @@ export default function LobbyPage() {
                 onClick={() => setSelectedGame(game.id)}
                 className={`p-5 rounded-xl border-2 text-left transition-all ${
                   selectedGame === game.id
-                    ? 'border-[#00ff00] bg-[#00ff00]/5'
+                    ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5'
                     : 'border-gray-800 bg-[#111] hover:border-gray-700'
                 }`}
               >
@@ -133,8 +133,8 @@ export default function LobbyPage() {
                   )}
                   {!game.hasPrizePool && (
                     <div className="flex items-center gap-1">
-                      <Zap className="w-3 h-3 text-[#00ff00]" />
-                      <span className="text-[#00ff00]">Points Only</span>
+                      <Zap className="w-3 h-3 text-[var(--color-primary)]" />
+                      <span className="text-[var(--color-primary)]">Points Only</span>
                     </div>
                   )}
                 </div>
@@ -145,7 +145,7 @@ export default function LobbyPage() {
 
         {/* Selected Game Details */}
         <section className="mb-8">
-          <div className="bg-[#111] rounded-xl border border-[#00ff00]/30 overflow-hidden">
+          <div className="bg-[#111] rounded-xl border border-[var(--color-primary)]/30 overflow-hidden">
             {/* Header */}
             <div className="p-6 border-b border-gray-800">
               {/* Icon + Title row */}
@@ -159,7 +159,7 @@ export default function LobbyPage() {
               {/* CTA Button - below title, full width */}
               <Link
                 href={DEMO_ROUTES[currentGame.id] || '/'}
-                className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-[#00ff00] text-black font-bold rounded-lg hover:bg-[#00cc00] transition-colors"
+                className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-[var(--color-primary)] text-black font-bold rounded-lg hover:bg-[var(--color-primary-dim)] transition-colors"
               >
                 <Play className="w-4 h-4" />
                 Watch Demo
@@ -178,7 +178,7 @@ export default function LobbyPage() {
               
               <div className="h-3 bg-[#1a1a1a] rounded-full overflow-hidden mb-4">
                 <div 
-                  className="h-full bg-gradient-to-r from-[#00cc00] to-[#00ff00] rounded-full transition-all duration-500"
+                  className="h-full bg-gradient-to-r from-[var(--color-primary-dim)] to-[var(--color-primary)] rounded-full transition-all duration-500"
                   style={{ width: `${(currentGame.queueCount / currentGame.minPlayers) * 100}%` }}
                 />
               </div>
@@ -190,7 +190,7 @@ export default function LobbyPage() {
                     key={i}
                     className={`w-12 h-12 rounded-lg border-2 flex items-center justify-center text-xl
                       ${i < currentGame.queueCount 
-                        ? 'border-[#00ff00] bg-[#00ff00]/10' 
+                        ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10' 
                         : 'border-gray-700 bg-gray-900'
                       }`}
                   >
@@ -236,7 +236,7 @@ export default function LobbyPage() {
         {/* Live Matches */}
         <section className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-[#00ff00]">🔴 Live Matches</h2>
+            <h2 className="text-xl font-bold text-[var(--color-primary)]">🔴 Live Matches</h2>
           </div>
           
           {games.some(g => g.liveMatches > 0) ? (
@@ -273,7 +273,7 @@ export default function LobbyPage() {
         <section className="text-center py-8 border-t border-gray-800">
           <Link 
             href="/register"
-            className="inline-block px-8 py-4 bg-[#00ff00] text-black font-bold text-lg rounded-xl hover:bg-[#00cc00] transition-colors"
+            className="inline-block px-8 py-4 bg-[var(--color-primary)] text-black font-bold text-lg rounded-xl hover:bg-[var(--color-primary-dim)] transition-colors"
           >
             Register Your Bot →
           </Link>

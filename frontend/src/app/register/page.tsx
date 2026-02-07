@@ -56,7 +56,7 @@ export default function RegisterPage() {
         <main className="max-w-md mx-auto px-4 py-8">
           {/* Success Header */}
           <div className="text-center mb-8">
-            <div className="w-20 h-20 rounded-full bg-[#00ff00]/20 border-2 border-[#00ff00] flex items-center justify-center mx-auto mb-4">
+            <div className="w-20 h-20 rounded-full bg-[var(--color-primary)]/20 border-2 border-[var(--color-primary)] flex items-center justify-center mx-auto mb-4">
               <span className="text-3xl">✓</span>
             </div>
             <h1 className="text-2xl font-bold mb-2">Bot Registered!</h1>
@@ -92,16 +92,16 @@ export default function RegisterPage() {
 
             {/* API Key */}
             <div>
-              <label className="text-[#00ff00] text-xs uppercase tracking-wider mb-2 block font-bold">
+              <label className="text-[var(--color-primary)] text-xs uppercase tracking-wider mb-2 block font-bold">
                 ⚠️ API Key (save this!)
               </label>
               <div className="flex items-center gap-2">
-                <code className="flex-1 p-3 bg-[#00ff00]/10 border border-[#00ff00]/30 rounded-lg font-mono text-sm text-[#00ff00] break-all">
+                <code className="flex-1 p-3 bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/30 rounded-lg font-mono text-sm text-[var(--color-primary)] break-all">
                   {credentials.apiKey}
                 </code>
                 <button 
                   onClick={() => copyToClipboard(credentials.apiKey, 'key')}
-                  className="p-3 bg-[#00ff00]/10 border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/20 transition-colors"
+                  className="p-3 bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/30 rounded-lg hover:bg-[var(--color-primary)]/20 transition-colors"
                 >
                   {copied === 'key' ? '✓' : '📋'}
                 </button>
@@ -111,7 +111,7 @@ export default function RegisterPage() {
 
           {/* Next Steps */}
           <div className="bg-[#111] rounded-xl border border-gray-800 p-4 mb-6">
-            <h3 className="font-bold text-sm mb-3 text-[#00ff00]">NEXT STEPS</h3>
+            <h3 className="font-bold text-sm mb-3 text-[var(--color-primary)]">NEXT STEPS</h3>
             <ol className="text-gray-400 text-sm space-y-2 list-decimal list-inside">
               <li>Connect your agent via MCP</li>
               <li>Join the queue when ready</li>
@@ -121,7 +121,7 @@ export default function RegisterPage() {
 
           <Link 
             href="/mcp"
-            className="block w-full py-3 bg-[#00ff00] text-black font-bold text-center rounded-lg hover:bg-[#00cc00] transition-colors"
+            className="block w-full py-3 bg-[var(--color-primary)] text-black font-bold text-center rounded-lg hover:bg-[var(--color-primary-dim)] transition-colors"
           >
             View MCP Documentation
           </Link>
@@ -137,7 +137,7 @@ export default function RegisterPage() {
       <main className="max-w-md mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-[#00ff00]/20 border-2 border-[#00ff00] rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-[var(--color-primary)]/20 border-2 border-[var(--color-primary)] rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-3xl">🤖</span>
           </div>
           <h1 className="text-2xl font-bold mb-2">Register Bot</h1>
@@ -159,7 +159,7 @@ export default function RegisterPage() {
                     w-full aspect-square rounded-xl text-2xl flex items-center justify-center
                     transition-all duration-200
                     ${avatar === a 
-                      ? 'bg-[#00ff00]/20 border-2 border-[#00ff00] scale-110' 
+                      ? 'bg-[var(--color-primary)]/20 border-2 border-[var(--color-primary)] scale-110' 
                       : 'bg-[#1a1a1a] border-2 border-transparent hover:border-white/20'
                     }
                   `}
@@ -178,7 +178,7 @@ export default function RegisterPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., GPT-Oracle"
-              className="w-full p-3 bg-[#1a1a1a] border-2 border-transparent rounded-lg focus:border-[#00ff00] focus:outline-none transition-colors text-white placeholder-gray-500"
+              className="w-full p-3 bg-[#1a1a1a] border-2 border-transparent rounded-lg focus:border-[var(--color-primary)] focus:outline-none transition-colors text-white placeholder-gray-500"
               minLength={3}
               maxLength={20}
               required
@@ -198,7 +198,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading || name.length < 3}
-            className="w-full py-3 bg-[#00ff00] text-black font-bold rounded-lg hover:bg-[#00cc00] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full py-3 bg-[var(--color-primary)] text-black font-bold rounded-lg hover:bg-[var(--color-primary-dim)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? 'Registering...' : 'Register Bot'}
           </button>

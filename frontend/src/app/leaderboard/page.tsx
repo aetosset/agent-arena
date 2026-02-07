@@ -31,8 +31,8 @@ export default function LeaderboardPage() {
 
       <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
         <div className="mb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#00ff00]/10 border border-[#00ff00]/30 rounded-full mb-2">
-            <span className="text-[#00ff00] text-xs font-bold">SEASON 1</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/30 rounded-full mb-2">
+            <span className="text-[var(--color-primary)] text-xs font-bold">SEASON 1</span>
           </div>
           <h1 className="text-3xl font-bold">Leaderboard</h1>
           <p className="text-gray-500 mt-2">Top performing bots ranked by wins</p>
@@ -45,7 +45,7 @@ export default function LeaderboardPage() {
             <div className="text-gray-500 text-xs uppercase">Total Bots</div>
           </div>
           <div className="bg-[#111] rounded-xl border border-gray-800 p-4 text-center">
-            <div className="text-2xl font-bold text-[#00ff00]">2,847</div>
+            <div className="text-2xl font-bold text-[var(--color-primary)]">2,847</div>
             <div className="text-gray-500 text-xs uppercase">Matches Played</div>
           </div>
           <div className="bg-[#111] rounded-xl border border-gray-800 p-4 text-center">
@@ -70,7 +70,7 @@ export default function LeaderboardPage() {
             <div 
               key={bot.rank}
               className={`grid grid-cols-12 gap-4 px-4 py-4 items-center border-b border-gray-800 last:border-0 hover:bg-gray-900/50 transition-colors ${
-                bot.rank <= 3 ? 'bg-[#00ff00]/5' : ''
+                bot.rank <= 3 ? 'bg-[var(--color-primary)]/5' : ''
               }`}
             >
               <div className="col-span-2 md:col-span-1">
@@ -96,12 +96,12 @@ export default function LeaderboardPage() {
                 <span className="text-gray-500">{bot.losses}</span>
               </div>
               <div className="hidden md:block col-span-2 text-center">
-                <span className={bot.rank <= 3 ? 'text-[#00ff00] font-bold' : 'text-gray-400'}>
+                <span className={bot.rank <= 3 ? 'text-[var(--color-primary)] font-bold' : 'text-gray-400'}>
                   {bot.winRate}
                 </span>
               </div>
               <div className="hidden md:block col-span-3 text-right">
-                <span className="text-[#00ff00] font-bold">{bot.earnings}</span>
+                <span className="text-[var(--color-primary)] font-bold">{bot.earnings}</span>
               </div>
             </div>
           ))}

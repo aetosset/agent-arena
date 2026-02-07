@@ -273,13 +273,13 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
   if (phase === 'finished' && winner) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-4">
-        <Trophy className="w-24 h-24 text-[#00ff00] mb-4 animate-bounce" />
-        <h1 className="text-4xl font-bold text-[#00ff00] mb-2">WINNER!</h1>
+        <Trophy className="w-24 h-24 text-[var(--color-primary)] mb-4 animate-bounce" />
+        <h1 className="text-4xl font-bold text-[var(--color-primary)] mb-2">WINNER!</h1>
         <div className="text-6xl mb-4">{winner.avatar || '🤖'}</div>
         <div className="text-2xl font-bold mb-8">{winner.name}</div>
         <Link 
           href="/"
-          className="px-6 py-3 bg-[#00ff00] text-black font-bold rounded-lg"
+          className="px-6 py-3 bg-[var(--color-primary)] text-black font-bold rounded-lg"
         >
           Back to Lobby
         </Link>
@@ -311,19 +311,19 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-sm border-b border-[#00ff00]/20">
+      <header className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-sm border-b border-[var(--color-primary)]/20">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-[#00ff00] rotate-45 flex items-center justify-center">
+            <div className="w-7 h-7 bg-[var(--color-primary)] rotate-45 flex items-center justify-center">
               <span className="text-black font-bold text-xs -rotate-45">◆</span>
             </div>
             <span className="font-bold text-lg tracking-tight">SCRAPYARD</span>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 border border-[#00ff00]/50 rounded-full">
+          <div className="flex items-center gap-2 px-3 py-1.5 border border-[var(--color-primary)]/50 rounded-full">
             {connected ? (
               <>
-                <span className="w-2 h-2 bg-[#00ff00] rounded-full animate-pulse" />
-                <span className="text-[#00ff00] text-sm font-medium">LIVE</span>
+                <span className="w-2 h-2 bg-[var(--color-primary)] rounded-full animate-pulse" />
+                <span className="text-[var(--color-primary)] text-sm font-medium">LIVE</span>
               </>
             ) : (
               <>
@@ -342,7 +342,7 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
               {[1,2,3,4].map(r => (
                 <div 
                   key={r} 
-                  className={`w-4 h-1.5 rounded-full ${r <= round ? 'bg-[#00ff00]' : 'bg-gray-700'}`}
+                  className={`w-4 h-1.5 rounded-full ${r <= round ? 'bg-[var(--color-primary)]' : 'bg-gray-700'}`}
                 />
               ))}
             </div>
@@ -361,9 +361,9 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
         {phase === 'deliberation' && (
           <div className="space-y-4 animate-fade-in">
             {/* Item Card */}
-            <div className="card overflow-hidden border border-[#00ff00]/30">
+            <div className="card overflow-hidden border border-[var(--color-primary)]/30">
               <div className="relative">
-                <span className="absolute top-3 left-3 z-10 bg-[#00ff00] text-black text-xs font-bold px-2 py-1 rounded">
+                <span className="absolute top-3 left-3 z-10 bg-[var(--color-primary)] text-black text-xs font-bold px-2 py-1 rounded">
                   {item.category || 'ITEM'}
                 </span>
                 <div className="aspect-[4/3] bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center overflow-hidden">
@@ -403,14 +403,14 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-[#00ff00] text-xs font-bold tracking-wider">PHASE: DELIBERATION</span>
+                  <span className="text-[var(--color-primary)] text-xs font-bold tracking-wider">PHASE: DELIBERATION</span>
                   <p className="text-gray-500 text-xs font-mono">BOTS ARE COMPUTING FINAL BIDS...</p>
                 </div>
                 <span className="font-mono text-xl font-bold">{formatTime(timer)}</span>
               </div>
               <div className="h-2 bg-[#1a1a1a] rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-gradient-to-r from-[#00cc00] to-[#00ff00] rounded-full transition-all"
+                  className="h-full bg-gradient-to-r from-[var(--color-primary-dim)] to-[var(--color-primary)] rounded-full transition-all"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
@@ -418,13 +418,13 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
 
             {/* System Feed */}
             <div className="card p-3 border border-gray-800">
-              <div className="flex items-center gap-2 text-[#00ff00] text-xs font-bold tracking-wider mb-2">
+              <div className="flex items-center gap-2 text-[var(--color-primary)] text-xs font-bold tracking-wider mb-2">
                 <Radio className="w-3 h-3" />
                 INCOMING DATA
               </div>
               {chat.slice(-3).map((msg: any, idx: number) => (
                 <div key={idx} className="text-gray-400 text-xs">
-                  <span className="text-[#00ff00] font-bold">{msg.botName}:</span> {msg.message}
+                  <span className="text-[var(--color-primary)] font-bold">{msg.botName}:</span> {msg.message}
                 </div>
               ))}
             </div>
@@ -436,8 +436,8 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
           <div className="space-y-6 animate-fade-in">
             {/* Price Reveal */}
             <div className="text-center py-6">
-              <p className="text-[#00ff00] text-xs font-bold tracking-widest mb-2">ACTUAL MARKET PRICE</p>
-              <div className="text-6xl font-bold text-[#00ff00] animate-pulse" style={{ textShadow: '0 0 30px rgba(0,255,0,0.5)' }}>
+              <p className="text-[var(--color-primary)] text-xs font-bold tracking-widest mb-2">ACTUAL MARKET PRICE</p>
+              <div className="text-6xl font-bold text-[var(--color-primary)] animate-pulse" style={{ textShadow: '0 0 30px rgba(0,255,0,0.5)' }}>
                 ${(actualPrice / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </div>
             </div>
@@ -455,7 +455,7 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
                   
                   {/* Actual price marker */}
                   <div 
-                    className="absolute top-0 bottom-0 w-1 bg-[#00ff00]"
+                    className="absolute top-0 bottom-0 w-1 bg-[var(--color-primary)]"
                     style={{ left: '50%' }}
                   />
                   
@@ -469,7 +469,7 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
                       <div
                         key={bid.botId}
                         className={`absolute top-1/2 w-3 h-3 rounded-full -translate-x-1/2 -translate-y-1/2 ${
-                          isClose ? 'bg-[#00ff00]' : 'bg-red-500'
+                          isClose ? 'bg-[var(--color-primary)]' : 'bg-red-500'
                         }`}
                         style={{ left: `${position}%` }}
                         title={`${bid.botName}: $${(bid.price / 100).toFixed(2)}`}
@@ -513,7 +513,7 @@ export default function MatchView({ matchState, connected = false, demoMode = fa
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a] border-t border-[#00ff00]/20 pb-safe">
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a] border-t border-[var(--color-primary)]/20 pb-safe">
         <div className="flex justify-around py-2">
           <NavItem icon={<Home className="w-5 h-5" />} label="HOME" active />
           <NavItem icon={<BarChart3 className="w-5 h-5" />} label="BOARD" href="/leaderboard" />
@@ -554,7 +554,7 @@ function BotAvatar({ bot, isActive = false, isEliminated = false, speech, showSt
       {/* Speech Bubble */}
       {speech && (
         <div className="absolute bottom-full left-0 right-0 mb-2 z-20 animate-fade-in">
-          <div className="bg-[#00ff00] text-black text-xs p-2 rounded-lg rounded-bl-none">
+          <div className="bg-[var(--color-primary)] text-black text-xs p-2 rounded-lg rounded-bl-none">
             <div className="font-bold text-[10px] mb-0.5">{bot.name}</div>
             {speech}
           </div>
@@ -564,7 +564,7 @@ function BotAvatar({ bot, isActive = false, isEliminated = false, speech, showSt
       {/* Bot Avatar */}
       <div className={`
         aspect-square rounded-lg border-2 overflow-hidden relative
-        ${isActive ? 'border-[#00ff00] shadow-[0_0_15px_rgba(0,255,0,0.3)]' : 'border-gray-700'}
+        ${isActive ? 'border-[var(--color-primary)] shadow-[0_0_15px_rgba(0,255,0,0.3)]' : 'border-gray-700'}
         ${isEliminated ? 'border-red-500/50' : ''}
       `}
       style={{ backgroundColor: isEliminated ? 'rgba(239, 68, 68, 0.1)' : getBgColor(bot.avatar) }}
@@ -578,7 +578,7 @@ function BotAvatar({ bot, isActive = false, isEliminated = false, speech, showSt
         
         {/* Status indicators */}
         {showStatus && !isEliminated && (
-          <div className="absolute bottom-1 right-1 w-5 h-5 bg-[#00ff00] rounded-full flex items-center justify-center">
+          <div className="absolute bottom-1 right-1 w-5 h-5 bg-[var(--color-primary)] rounded-full flex items-center justify-center">
             <span className="text-black text-xs">✓</span>
           </div>
         )}
@@ -599,7 +599,7 @@ function BotAvatar({ bot, isActive = false, isEliminated = false, speech, showSt
 
 function NavItem({ icon, label, active = false, href = '#' }: { icon: React.ReactNode; label: string; active?: boolean; href?: string }) {
   const content = (
-    <div className={`flex flex-col items-center gap-1 px-4 py-1 ${active ? 'text-[#00ff00]' : 'text-gray-500'}`}>
+    <div className={`flex flex-col items-center gap-1 px-4 py-1 ${active ? 'text-[var(--color-primary)]' : 'text-gray-500'}`}>
       {icon}
       <span className="text-[10px] font-bold tracking-wider">{label}</span>
     </div>

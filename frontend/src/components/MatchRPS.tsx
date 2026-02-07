@@ -305,8 +305,8 @@ export default function MatchRPS() {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-8">
         <div className="text-6xl mb-2 animate-bounce">🏆</div>
-        <div className="text-[#00ff00] text-sm font-bold tracking-widest mb-1">MATCH COMPLETE</div>
-        <h1 className="text-5xl font-bold mb-2 bg-gradient-to-r from-yellow-400 via-[#00ff00] to-yellow-400 bg-clip-text text-transparent">
+        <div className="text-[var(--color-primary)] text-sm font-bold tracking-widest mb-1">MATCH COMPLETE</div>
+        <h1 className="text-5xl font-bold mb-2 bg-gradient-to-r from-yellow-400 via-[var(--color-primary)] to-yellow-400 bg-clip-text text-transparent">
           WINNER!
         </h1>
         
@@ -321,7 +321,7 @@ export default function MatchRPS() {
             </div>
             <div className="absolute -top-3 -right-3 text-4xl">👑</div>
           </div>
-          <div className="text-[#00ff00] font-bold text-3xl">{winner.name}</div>
+          <div className="text-[var(--color-primary)] font-bold text-3xl">{winner.name}</div>
           <div className="text-yellow-400 font-bold text-xl mt-2">
             Score: {winner.roundsWon} - {loser.roundsWon}
           </div>
@@ -338,15 +338,15 @@ export default function MatchRPS() {
               >
                 <div className="text-gray-500 text-sm">Round {r.round}</div>
                 <div className="flex items-center gap-4">
-                  <span className={`text-2xl ${r.winner === 'p1' ? 'ring-2 ring-[#00ff00] rounded-lg p-1' : ''}`}>
+                  <span className={`text-2xl ${r.winner === 'p1' ? 'ring-2 ring-[var(--color-primary)] rounded-lg p-1' : ''}`}>
                     {r.p1Choice ? CHOICE_EMOJI[r.p1Choice] : '❓'}
                   </span>
                   <span className="text-gray-500">vs</span>
-                  <span className={`text-2xl ${r.winner === 'p2' ? 'ring-2 ring-[#00ff00] rounded-lg p-1' : ''}`}>
+                  <span className={`text-2xl ${r.winner === 'p2' ? 'ring-2 ring-[var(--color-primary)] rounded-lg p-1' : ''}`}>
                     {r.p2Choice ? CHOICE_EMOJI[r.p2Choice] : '❓'}
                   </span>
                 </div>
-                <div className={`text-sm font-bold ${r.winner === 'draw' ? 'text-yellow-400' : 'text-[#00ff00]'}`}>
+                <div className={`text-sm font-bold ${r.winner === 'draw' ? 'text-yellow-400' : 'text-[var(--color-primary)]'}`}>
                   {r.winner === 'draw' ? 'DRAW' : r.winner === 'p1' ? players[0].name : players[1].name}
                 </div>
               </div>
@@ -356,7 +356,7 @@ export default function MatchRPS() {
 
         <Link 
           href="/" 
-          className="px-8 py-4 bg-[#00ff00] text-black font-bold text-lg rounded-xl hover:bg-[#00cc00] transition-colors shadow-lg shadow-[#00ff00]/20"
+          className="px-8 py-4 bg-[var(--color-primary)] text-black font-bold text-lg rounded-xl hover:bg-[var(--color-primary-dim)] transition-colors shadow-lg shadow-[var(--color-primary)]/20"
         >
           Back to Lobby
         </Link>
@@ -368,7 +368,7 @@ export default function MatchRPS() {
   if (phase === 'countdown') {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-8">
-        <div className="text-[#00ff00] text-sm font-bold tracking-widest mb-2">ROCK PAPER SCISSORS</div>
+        <div className="text-[var(--color-primary)] text-sm font-bold tracking-widest mb-2">ROCK PAPER SCISSORS</div>
         <h1 className="text-4xl font-bold mb-8">Best of 3</h1>
         
         {/* VS Card */}
@@ -383,7 +383,7 @@ export default function MatchRPS() {
             <div className="font-bold text-lg">{players[0].name}</div>
           </div>
           
-          <div className="text-4xl font-bold text-[#00ff00]">VS</div>
+          <div className="text-4xl font-bold text-[var(--color-primary)]">VS</div>
           
           <div className="text-center">
             <div 
@@ -397,7 +397,7 @@ export default function MatchRPS() {
         </div>
 
         <div className="text-gray-500 text-sm mb-2">STARTING IN</div>
-        <div className="text-[#00ff00] text-7xl font-mono font-bold animate-pulse">{timer}</div>
+        <div className="text-[var(--color-primary)] text-7xl font-mono font-bold animate-pulse">{timer}</div>
       </div>
     );
   }
@@ -419,23 +419,23 @@ export default function MatchRPS() {
   const MobileView = () => (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col md:hidden">
       {/* Mobile Header */}
-      <header className="border-b border-[#00ff00]/20 px-4 py-3 flex items-center justify-between">
+      <header className="border-b border-[var(--color-primary)]/20 px-4 py-3 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-[#00ff00] rotate-45 flex items-center justify-center">
+          <div className="w-6 h-6 bg-[var(--color-primary)] rotate-45 flex items-center justify-center">
             <span className="text-black font-bold text-xs -rotate-45">◆</span>
           </div>
           <span className="font-bold text-lg">RPS</span>
         </Link>
-        <div className="flex items-center gap-2 px-2 py-1 border border-[#00ff00]/50 rounded-full">
-          <div className="w-2 h-2 rounded-full bg-[#00ff00] animate-pulse" />
-          <span className="text-[#00ff00] text-xs font-medium">DEMO</span>
+        <div className="flex items-center gap-2 px-2 py-1 border border-[var(--color-primary)]/50 rounded-full">
+          <div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
+          <span className="text-[var(--color-primary)] text-xs font-medium">DEMO</span>
         </div>
       </header>
 
       {/* Mobile Status Bar */}
       <div className="px-4 py-2 border-b border-gray-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-[#00ff00] text-xs font-bold uppercase">
+          <span className="text-[var(--color-primary)] text-xs font-bold uppercase">
             {phase === 'throwing' && 'THROW PHASE'}
             {phase === 'reveal' && 'REVEALING'}
             {phase === 'between_rounds' && 'NEXT ROUND'}
@@ -445,12 +445,12 @@ export default function MatchRPS() {
         <div className="flex items-center gap-3">
           {/* Score */}
           <div className="flex items-center gap-1 text-lg font-mono font-bold">
-            <span className="text-[#00ff00]">{players[0].roundsWon}</span>
+            <span className="text-[var(--color-primary)]">{players[0].roundsWon}</span>
             <span className="text-gray-500">-</span>
-            <span className="text-[#00ff00]">{players[1].roundsWon}</span>
+            <span className="text-[var(--color-primary)]">{players[1].roundsWon}</span>
           </div>
           {/* Timer */}
-          <span className="font-mono text-xl font-bold text-[#00ff00]">
+          <span className="font-mono text-xl font-bold text-[var(--color-primary)]">
             {String(Math.floor(timer / 60)).padStart(2, '0')}:{String(timer % 60).padStart(2, '0')}
           </span>
         </div>
@@ -459,7 +459,7 @@ export default function MatchRPS() {
       {/* Mobile Info Card */}
       <div className="p-4 border-b border-gray-800">
         <div className="text-center">
-          <div className="text-[#00ff00] text-xs font-bold mb-1">ROUND {round} • Best of 3</div>
+          <div className="text-[var(--color-primary)] text-xs font-bold mb-1">ROUND {round} • Best of 3</div>
           <div className="font-bold">{players[0].name} vs {players[1].name}</div>
         </div>
       </div>
@@ -472,7 +472,7 @@ export default function MatchRPS() {
             {/* Speech bubble */}
             {getRecentSpeech(players[0].id) && (
               <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-10">
-                <div className="bg-[#00ff00] text-black text-xs px-2 py-1.5 rounded-lg rounded-bl-none max-w-[100px] font-medium leading-tight">
+                <div className="bg-[var(--color-primary)] text-black text-xs px-2 py-1.5 rounded-lg rounded-bl-none max-w-[100px] font-medium leading-tight">
                   {getRecentSpeech(players[0].id)?.slice(0, 30)}...
                 </div>
               </div>
@@ -484,28 +484,28 @@ export default function MatchRPS() {
               {players[0].avatar}
             </div>
             <div className="font-bold text-sm">{players[0].name}</div>
-            <div className="text-[#00ff00] text-xs">Rounds: {players[0].roundsWon}</div>
+            <div className="text-[var(--color-primary)] text-xs">Rounds: {players[0].roundsWon}</div>
             {/* Show throw during reveal */}
             {phase === 'reveal' && players[0].choice && (
               <div className="mt-2 text-4xl">{CHOICE_EMOJI[players[0].choice]}</div>
             )}
             {/* Show status during throwing */}
             {phase === 'throwing' && (
-              <div className={`mt-2 text-xs ${players[0].hasThrown ? 'text-[#00ff00]' : 'text-yellow-400'}`}>
+              <div className={`mt-2 text-xs ${players[0].hasThrown ? 'text-[var(--color-primary)]' : 'text-yellow-400'}`}>
                 {players[0].hasThrown ? '✓ Locked' : 'Choosing...'}
               </div>
             )}
           </div>
 
           {/* VS */}
-          <div className="text-3xl font-bold text-[#00ff00]/50">VS</div>
+          <div className="text-3xl font-bold text-[var(--color-primary)]/50">VS</div>
 
           {/* Player 2 */}
           <div className="flex-1 flex flex-col items-center relative">
             {/* Speech bubble */}
             {getRecentSpeech(players[1].id) && (
               <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-10">
-                <div className="bg-[#00ff00] text-black text-xs px-2 py-1.5 rounded-lg rounded-br-none max-w-[100px] font-medium leading-tight">
+                <div className="bg-[var(--color-primary)] text-black text-xs px-2 py-1.5 rounded-lg rounded-br-none max-w-[100px] font-medium leading-tight">
                   {getRecentSpeech(players[1].id)?.slice(0, 30)}...
                 </div>
               </div>
@@ -517,14 +517,14 @@ export default function MatchRPS() {
               {players[1].avatar}
             </div>
             <div className="font-bold text-sm">{players[1].name}</div>
-            <div className="text-[#00ff00] text-xs">Rounds: {players[1].roundsWon}</div>
+            <div className="text-[var(--color-primary)] text-xs">Rounds: {players[1].roundsWon}</div>
             {/* Show throw during reveal */}
             {phase === 'reveal' && players[1].choice && (
               <div className="mt-2 text-4xl">{CHOICE_EMOJI[players[1].choice]}</div>
             )}
             {/* Show status during throwing */}
             {phase === 'throwing' && (
-              <div className={`mt-2 text-xs ${players[1].hasThrown ? 'text-[#00ff00]' : 'text-yellow-400'}`}>
+              <div className={`mt-2 text-xs ${players[1].hasThrown ? 'text-[var(--color-primary)]' : 'text-yellow-400'}`}>
                 {players[1].hasThrown ? '✓ Locked' : 'Choosing...'}
               </div>
             )}
@@ -537,7 +537,7 @@ export default function MatchRPS() {
             {rounds[rounds.length - 1].winner === 'draw' ? (
               <div className="text-yellow-400 text-xl font-bold">DRAW! Replaying...</div>
             ) : (
-              <div className="text-[#00ff00] text-xl font-bold">
+              <div className="text-[var(--color-primary)] text-xl font-bold">
                 {rounds[rounds.length - 1].winner === 'p1' ? players[0].name : players[1].name} WINS ROUND!
               </div>
             )}
@@ -548,7 +548,7 @@ export default function MatchRPS() {
       {/* Mobile Round History */}
       {rounds.length > 0 && (
         <div className="px-4 py-3 border-t border-gray-800">
-          <div className="text-[#00ff00] text-xs font-bold mb-2">ROUND HISTORY</div>
+          <div className="text-[var(--color-primary)] text-xs font-bold mb-2">ROUND HISTORY</div>
           <div className="flex gap-2 overflow-x-auto">
             {rounds.map((r, idx) => (
               <div 
@@ -569,7 +569,7 @@ export default function MatchRPS() {
       {/* Mobile Chat */}
       <div className="border-t border-gray-800">
         <div className="px-4 py-2 border-b border-gray-800">
-          <span className="text-[#00ff00] text-xs font-bold">LIVE CHAT</span>
+          <span className="text-[var(--color-primary)] text-xs font-bold">LIVE CHAT</span>
         </div>
         <div className="p-4 space-y-2 max-h-32 overflow-y-auto">
           {chat.length === 0 ? (
@@ -579,7 +579,7 @@ export default function MatchRPS() {
               const player = players.find(p => p.id === msg.playerId);
               return (
                 <div key={idx} className="text-sm">
-                  <span className="text-[#00ff00] font-bold">{player?.name}:</span>
+                  <span className="text-[var(--color-primary)] font-bold">{player?.name}:</span>
                   <span className="text-gray-400 ml-2">{msg.text}</span>
                 </div>
               );
@@ -599,9 +599,9 @@ export default function MatchRPS() {
       {/* Desktop */}
       <div className="min-h-screen bg-[#0a0a0a] text-white flex-col hidden md:flex">
         {/* Header */}
-        <header className="border-b border-[#00ff00]/20 px-6 py-3 flex items-center justify-between bg-[#0a0a0a] z-50">
+        <header className="border-b border-[var(--color-primary)]/20 px-6 py-3 flex items-center justify-between bg-[#0a0a0a] z-50">
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 bg-[#00ff00] rotate-45 flex items-center justify-center">
+            <div className="w-8 h-8 bg-[var(--color-primary)] rotate-45 flex items-center justify-center">
               <span className="text-black font-bold text-sm -rotate-45">◆</span>
             </div>
             <span className="font-bold text-xl tracking-tight">ROCK PAPER SCISSORS</span>
@@ -620,9 +620,9 @@ export default function MatchRPS() {
               </Link>
             </nav>
             
-            <div className="flex items-center gap-2 px-3 py-1.5 border border-[#00ff00]/50 rounded-full">
-              <div className="w-2 h-2 rounded-full bg-[#00ff00] animate-pulse" />
-              <span className="text-[#00ff00] text-sm font-medium">DEMO</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 border border-[var(--color-primary)]/50 rounded-full">
+              <div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
+              <span className="text-[var(--color-primary)] text-sm font-medium">DEMO</span>
             </div>
           </div>
         </header>
@@ -644,7 +644,7 @@ export default function MatchRPS() {
               </div>
               <div>
                 <div className="font-bold text-lg">{players[0].name}</div>
-                <div className="text-[#00ff00] text-sm">Rounds: {players[0].roundsWon}</div>
+                <div className="text-[var(--color-primary)] text-sm">Rounds: {players[0].roundsWon}</div>
               </div>
             </div>
             
@@ -652,7 +652,7 @@ export default function MatchRPS() {
             <div className="p-3 rounded-lg bg-gray-900/50 border border-gray-800">
               <div className="text-xs text-gray-500 mb-1">STATUS</div>
               {phase === 'throwing' ? (
-                <div className={players[0].hasThrown ? 'text-[#00ff00]' : 'text-yellow-400'}>
+                <div className={players[0].hasThrown ? 'text-[var(--color-primary)]' : 'text-yellow-400'}>
                   {players[0].hasThrown ? '✓ Locked in' : 'Choosing...'}
                 </div>
               ) : phase === 'reveal' && players[0].choice ? (
@@ -669,7 +669,7 @@ export default function MatchRPS() {
           {/* Status Bar */}
           <div className="py-3 border-b border-gray-800 flex items-center justify-between mx-auto" style={{ width: GRID_WIDTH }}>
             <div className="flex items-center gap-4">
-              <span className={`text-[#00ff00] text-sm font-bold uppercase tracking-wider ${phase === 'throwing' ? 'animate-pulse' : ''}`}>
+              <span className={`text-[var(--color-primary)] text-sm font-bold uppercase tracking-wider ${phase === 'throwing' ? 'animate-pulse' : ''}`}>
                 {phase === 'throwing' && 'THROW PHASE'}
                 {phase === 'reveal' && 'REVEALING'}
                 {phase === 'between_rounds' && 'NEXT ROUND'}
@@ -684,13 +684,13 @@ export default function MatchRPS() {
             <div className="flex items-center gap-6">
               {/* Score */}
               <div className="flex items-center gap-2 text-2xl font-mono font-bold">
-                <span className="text-[#00ff00]">{players[0].roundsWon}</span>
+                <span className="text-[var(--color-primary)]">{players[0].roundsWon}</span>
                 <span className="text-gray-500">-</span>
-                <span className="text-[#00ff00]">{players[1].roundsWon}</span>
+                <span className="text-[var(--color-primary)]">{players[1].roundsWon}</span>
               </div>
               
               {/* Timer */}
-              <div className="font-mono text-3xl font-bold text-[#00ff00]">
+              <div className="font-mono text-3xl font-bold text-[var(--color-primary)]">
                 {String(Math.floor(timer / 60)).padStart(2, '0')}:{String(timer % 60).padStart(2, '0')}
               </div>
             </div>
@@ -699,7 +699,7 @@ export default function MatchRPS() {
           {/* Info Card */}
           <div className="py-4 flex justify-center">
             <div 
-              className="bg-[#111] rounded-xl p-5 border border-[#00ff00]/20"
+              className="bg-[#111] rounded-xl p-5 border border-[var(--color-primary)]/20"
               style={{ width: GRID_WIDTH }}
             >
               {/* Top row: Icons + Title */}
@@ -710,7 +710,7 @@ export default function MatchRPS() {
                   <span>✂️</span>
                 </div>
                 <div className="flex-1">
-                  <div className="text-[#00ff00] text-xs font-bold tracking-wider mb-1">ROUND {round}</div>
+                  <div className="text-[var(--color-primary)] text-xs font-bold tracking-wider mb-1">ROUND {round}</div>
                   <h2 className="text-2xl font-bold">{players[0].name} vs {players[1].name}</h2>
                   <div className="text-gray-500 text-sm mt-1">First to 2 wins</div>
                 </div>
@@ -723,7 +723,7 @@ export default function MatchRPS() {
                     {rounds[rounds.length - 1].winner === 'draw' ? (
                       <span className="text-yellow-400">DRAW! Replaying...</span>
                     ) : (
-                      <span className="text-[#00ff00]">
+                      <span className="text-[var(--color-primary)]">
                         {rounds[rounds.length - 1].winner === 'p1' ? players[0].name : players[1].name} WINS THE ROUND!
                       </span>
                     )}
@@ -743,7 +743,7 @@ export default function MatchRPS() {
                 phase === 'reveal' && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     {/* VS text in center */}
-                    <div className="text-6xl font-bold text-[#00ff00]/20">VS</div>
+                    <div className="text-6xl font-bold text-[var(--color-primary)]/20">VS</div>
                   </div>
                 )
               }
@@ -754,7 +754,7 @@ export default function MatchRPS() {
           {rounds.length > 0 && (
             <div className="px-6 pb-4">
               <div className="bg-[#111] rounded-xl p-4 border border-gray-800 mx-auto" style={{ width: GRID_WIDTH }}>
-                <div className="text-[#00ff00] text-xs font-bold tracking-wider mb-3">ROUND HISTORY</div>
+                <div className="text-[var(--color-primary)] text-xs font-bold tracking-wider mb-3">ROUND HISTORY</div>
                 <div className="flex gap-4">
                   {rounds.map((r, idx) => (
                     <div 
@@ -765,14 +765,14 @@ export default function MatchRPS() {
                       }`}
                     >
                       <span className="text-gray-500 text-sm">R{r.round}</span>
-                      <span className={`text-2xl ${r.winner === 'p1' ? 'ring-2 ring-[#00ff00] rounded p-0.5' : ''}`}>
+                      <span className={`text-2xl ${r.winner === 'p1' ? 'ring-2 ring-[var(--color-primary)] rounded p-0.5' : ''}`}>
                         {r.p1Choice ? CHOICE_EMOJI[r.p1Choice] : '❓'}
                       </span>
                       <span className="text-gray-600">vs</span>
-                      <span className={`text-2xl ${r.winner === 'p2' ? 'ring-2 ring-[#00ff00] rounded p-0.5' : ''}`}>
+                      <span className={`text-2xl ${r.winner === 'p2' ? 'ring-2 ring-[var(--color-primary)] rounded p-0.5' : ''}`}>
                         {r.p2Choice ? CHOICE_EMOJI[r.p2Choice] : '❓'}
                       </span>
-                      <span className={`text-xs font-bold ${r.winner === 'draw' ? 'text-yellow-400' : 'text-[#00ff00]'}`}>
+                      <span className={`text-xs font-bold ${r.winner === 'draw' ? 'text-yellow-400' : 'text-[var(--color-primary)]'}`}>
                         {r.winner === 'draw' ? 'DRAW' : r.winner === 'p1' ? 'P1' : 'P2'}
                       </span>
                     </div>
@@ -798,7 +798,7 @@ export default function MatchRPS() {
               </div>
               <div>
                 <div className="font-bold text-lg">{players[1].name}</div>
-                <div className="text-[#00ff00] text-sm">Rounds: {players[1].roundsWon}</div>
+                <div className="text-[var(--color-primary)] text-sm">Rounds: {players[1].roundsWon}</div>
               </div>
             </div>
             
@@ -806,7 +806,7 @@ export default function MatchRPS() {
             <div className="p-3 rounded-lg bg-gray-900/50 border border-gray-800">
               <div className="text-xs text-gray-500 mb-1">STATUS</div>
               {phase === 'throwing' ? (
-                <div className={players[1].hasThrown ? 'text-[#00ff00]' : 'text-yellow-400'}>
+                <div className={players[1].hasThrown ? 'text-[var(--color-primary)]' : 'text-yellow-400'}>
                   {players[1].hasThrown ? '✓ Locked in' : 'Choosing...'}
                 </div>
               ) : phase === 'reveal' && players[1].choice ? (
@@ -820,7 +820,7 @@ export default function MatchRPS() {
           {/* Chat feed */}
           <div className="flex-1 border-t border-gray-800 flex flex-col">
             <div className="p-3 border-b border-gray-800">
-              <span className="text-[#00ff00] text-xs font-bold">LIVE CHAT</span>
+              <span className="text-[var(--color-primary)] text-xs font-bold">LIVE CHAT</span>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {chat.length === 0 ? (
@@ -834,7 +834,7 @@ export default function MatchRPS() {
                     <div key={idx}>
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-lg">{player?.avatar}</span>
-                        <span className="text-[#00ff00] font-bold text-sm">{player?.name}</span>
+                        <span className="text-[var(--color-primary)] font-bold text-sm">{player?.name}</span>
                       </div>
                       <p className="text-gray-300 text-sm pl-7">{msg.text}</p>
                     </div>

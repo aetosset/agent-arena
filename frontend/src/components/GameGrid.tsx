@@ -207,7 +207,7 @@ export default function GameGrid({
             {/* Speech bubble */}
             {speech && !player.eliminated && (
               <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-                <div className="bg-[#00ff00] text-black text-sm px-4 py-2 rounded-xl rounded-bl-none max-w-[280px] font-medium shadow-lg leading-snug whitespace-nowrap">
+                <div className="bg-[var(--color-primary)] text-black text-sm px-4 py-2 rounded-xl rounded-bl-none max-w-[280px] font-medium shadow-lg leading-snug whitespace-nowrap">
                   {speech}
                 </div>
               </div>
@@ -217,7 +217,7 @@ export default function GameGrid({
             <div className="flex flex-col items-center">
               <div 
                 className={`rounded-xl border-2 flex items-center justify-center shadow-lg transition-all
-                  ${player.eliminated ? 'border-red-500 grayscale' : 'border-gray-600 hover:border-[#00ff00]/50'}
+                  ${player.eliminated ? 'border-red-500 grayscale' : 'border-gray-600 hover:border-[var(--color-primary)]/50'}
                 `}
                 style={{ 
                   width: iconSize, 
@@ -244,7 +244,7 @@ export default function GameGrid({
               
               {/* Game-specific display (bid, throw choice, etc.) */}
               {player.display && (
-                <div className="text-[#00ff00] font-mono font-bold" style={{ fontSize: Math.max(10, iconSize * 0.12) }}>
+                <div className="text-[var(--color-primary)] font-mono font-bold" style={{ fontSize: Math.max(10, iconSize * 0.12) }}>
                   {typeof player.display === 'string' ? player.display : JSON.stringify(player.display)}
                 </div>
               )}

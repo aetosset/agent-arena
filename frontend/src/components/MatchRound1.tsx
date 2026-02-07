@@ -353,7 +353,7 @@ export default function MatchRound1() {
   if (!game) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="text-[#00ff00] text-xl animate-pulse">Loading...</div>
+        <div className="text-[var(--color-primary)] text-xl animate-pulse">Loading...</div>
       </div>
     );
   }
@@ -378,8 +378,8 @@ export default function MatchRound1() {
       <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-8">
         {/* Confetti-like celebration header */}
         <div className="text-6xl mb-2 animate-bounce">🏆</div>
-        <div className="text-[#00ff00] text-sm font-bold tracking-widest mb-1">MATCH COMPLETE</div>
-        <h1 className="text-5xl font-bold mb-2 bg-gradient-to-r from-yellow-400 via-[#00ff00] to-yellow-400 bg-clip-text text-transparent">
+        <div className="text-[var(--color-primary)] text-sm font-bold tracking-widest mb-1">MATCH COMPLETE</div>
+        <h1 className="text-5xl font-bold mb-2 bg-gradient-to-r from-yellow-400 via-[var(--color-primary)] to-yellow-400 bg-clip-text text-transparent">
           CHAMPION!
         </h1>
         
@@ -395,7 +395,7 @@ export default function MatchRound1() {
               </div>
               <div className="absolute -top-3 -right-3 text-4xl">👑</div>
             </div>
-            <div className="text-[#00ff00] font-bold text-3xl">{winner.name}</div>
+            <div className="text-[var(--color-primary)] font-bold text-3xl">{winner.name}</div>
             <div className="text-yellow-400 font-bold text-xl mt-2">🎉 Won $1.00 🎉</div>
           </div>
         )}
@@ -431,7 +431,7 @@ export default function MatchRound1() {
 
         <Link 
           href="/" 
-          className="px-8 py-4 bg-[#00ff00] text-black font-bold text-lg rounded-xl hover:bg-[#00cc00] transition-colors shadow-lg shadow-[#00ff00]/20"
+          className="px-8 py-4 bg-[var(--color-primary)] text-black font-bold text-lg rounded-xl hover:bg-[var(--color-primary-dim)] transition-colors shadow-lg shadow-[var(--color-primary)]/20"
         >
           Back to Lobby
         </Link>
@@ -449,7 +449,7 @@ export default function MatchRound1() {
     
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-8">
-        <div className="text-[#00ff00] text-sm font-bold tracking-widest mb-2">ROUND {game.round} COMPLETE</div>
+        <div className="text-[var(--color-primary)] text-sm font-bold tracking-widest mb-2">ROUND {game.round} COMPLETE</div>
         <h1 className="text-4xl font-bold mb-8">2 Bots Eliminated</h1>
         
         <div className="flex gap-12 mb-8">
@@ -474,7 +474,7 @@ export default function MatchRound1() {
           {remaining.map(bot => (
             <div 
               key={bot.id} 
-              className="w-14 h-14 rounded-lg border border-[#00ff00]/30 flex items-center justify-center text-2xl"
+              className="w-14 h-14 rounded-lg border border-[var(--color-primary)]/30 flex items-center justify-center text-2xl"
               style={{ backgroundColor: AVATAR_COLORS[bot.avatar] || 'rgba(100,100,100,0.3)' }}
             >
               {bot.avatar}
@@ -485,7 +485,7 @@ export default function MatchRound1() {
         {/* Countdown */}
         <div className="text-center">
           <div className="text-gray-500 text-sm mb-2">ROUND {nextRound} STARTS IN</div>
-          <div className="text-[#00ff00] text-5xl font-mono font-bold">{summaryRemaining}</div>
+          <div className="text-[var(--color-primary)] text-5xl font-mono font-bold">{summaryRemaining}</div>
         </div>
       </div>
     );
@@ -499,23 +499,23 @@ export default function MatchRound1() {
   const MobileView = () => (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col md:hidden">
       {/* Mobile Header */}
-      <header className="border-b border-[#00ff00]/20 px-4 py-3 flex items-center justify-between">
+      <header className="border-b border-[var(--color-primary)]/20 px-4 py-3 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-[#00ff00] rotate-45 flex items-center justify-center">
+          <div className="w-6 h-6 bg-[var(--color-primary)] rotate-45 flex items-center justify-center">
             <span className="text-black font-bold text-xs -rotate-45">◆</span>
           </div>
           <span className="font-bold text-lg">SCRAPYARD</span>
         </Link>
-        <div className="flex items-center gap-2 px-2 py-1 border border-[#00ff00]/50 rounded-full">
-          <div className="w-2 h-2 rounded-full bg-[#00ff00] animate-pulse" />
-          <span className="text-[#00ff00] text-xs font-medium">DEMO</span>
+        <div className="flex items-center gap-2 px-2 py-1 border border-[var(--color-primary)]/50 rounded-full">
+          <div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
+          <span className="text-[var(--color-primary)] text-xs font-medium">DEMO</span>
         </div>
       </header>
 
       {/* Mobile Status Bar */}
       <div className="px-4 py-2 border-b border-gray-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-[#00ff00] text-xs font-bold uppercase">
+          <span className="text-[var(--color-primary)] text-xs font-bold uppercase">
             {game.phase === 'deliberation' && 'DELIBERATION'}
             {game.phase === 'reveal' && 'REVEAL'}
             {game.phase === 'elimination' && 'ELIMINATION'}
@@ -523,8 +523,8 @@ export default function MatchRound1() {
           <span className="text-gray-600 text-xs">R{game.round}/4</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-[#00ff00] text-sm font-bold">$1.00</span>
-          <span className="font-mono text-xl font-bold text-[#00ff00]">{formatTime(remaining)}</span>
+          <span className="text-[var(--color-primary)] text-sm font-bold">$1.00</span>
+          <span className="font-mono text-xl font-bold text-[var(--color-primary)]">{formatTime(remaining)}</span>
         </div>
       </div>
 
@@ -535,13 +535,13 @@ export default function MatchRound1() {
             {game.item.emoji}
           </div>
           <div className="flex-1">
-            <div className="text-[#00ff00] text-xs font-bold">ITEM #{game.round}</div>
+            <div className="text-[var(--color-primary)] text-xs font-bold">ITEM #{game.round}</div>
             <div className="font-bold">{game.item.title}</div>
           </div>
           {(game.phase === 'reveal' || game.phase === 'elimination') && (
             <div className="text-right">
               <div className="text-gray-500 text-xs">PRICE</div>
-              <div className="text-xl font-bold text-[#00ff00]">${(game.price / 100).toFixed(2)}</div>
+              <div className="text-xl font-bold text-[var(--color-primary)]">${(game.price / 100).toFixed(2)}</div>
             </div>
           )}
         </div>
@@ -558,7 +558,7 @@ export default function MatchRound1() {
                 {/* Speech bubble */}
                 {recentChat && !bot.eliminated && (
                   <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-10">
-                    <div className="bg-[#00ff00] text-black text-xs px-2 py-1.5 rounded-lg rounded-bl-none max-w-[120px] font-medium leading-tight">
+                    <div className="bg-[var(--color-primary)] text-black text-xs px-2 py-1.5 rounded-lg rounded-bl-none max-w-[120px] font-medium leading-tight">
                       {recentChat.text.slice(0, 35)}{recentChat.text.length > 35 ? '...' : ''}
                     </div>
                   </div>
@@ -577,7 +577,7 @@ export default function MatchRound1() {
                   {bot.name}
                 </div>
                 {(game.phase === 'reveal' || game.phase === 'elimination') && bot.bid && (
-                  <div className={`text-[10px] font-mono ${bot.eliminated ? 'text-red-400' : 'text-[#00ff00]'}`}>
+                  <div className={`text-[10px] font-mono ${bot.eliminated ? 'text-red-400' : 'text-[var(--color-primary)]'}`}>
                     ${(bot.bid / 100).toFixed(0)}
                   </div>
                 )}
@@ -605,13 +605,13 @@ export default function MatchRound1() {
       {/* Mobile Chat - newest at top */}
       <div className="flex-1 flex flex-col border-t border-gray-800">
         <div className="px-4 py-2 border-b border-gray-800">
-          <span className="text-[#00ff00] text-xs font-bold">LIVE CHAT</span>
+          <span className="text-[var(--color-primary)] text-xs font-bold">LIVE CHAT</span>
           <span className="text-gray-600 text-xs ml-2">{game.bots.filter(b => !b.eliminated).length} active</span>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-2 max-h-48">
           {[...game.chat].reverse().slice(0, 10).map(msg => (
             <div key={msg.id} className="text-sm">
-              <span className="text-[#00ff00] font-bold">{msg.botName}</span>
+              <span className="text-[var(--color-primary)] font-bold">{msg.botName}</span>
               <span className="text-gray-400 ml-2">{msg.text}</span>
             </div>
           ))}
@@ -629,10 +629,10 @@ export default function MatchRound1() {
       {/* Desktop */}
       <div className="min-h-screen bg-[#0a0a0a] text-white flex-col hidden md:flex">
         {/* Top Navigation Bar */}
-        <header className="border-b border-[#00ff00]/20 px-6 py-3 flex items-center justify-between bg-[#0a0a0a] z-50">
+        <header className="border-b border-[var(--color-primary)]/20 px-6 py-3 flex items-center justify-between bg-[#0a0a0a] z-50">
           {/* Left: Logo */}
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 bg-[#00ff00] rotate-45 flex items-center justify-center">
+            <div className="w-8 h-8 bg-[var(--color-primary)] rotate-45 flex items-center justify-center">
               <span className="text-black font-bold text-sm -rotate-45">◆</span>
             </div>
             <span className="font-bold text-xl tracking-tight">SCRAPYARD</span>
@@ -654,14 +654,14 @@ export default function MatchRound1() {
             
             <Link 
               href="/register" 
-              className="px-4 py-2 bg-[#00ff00] text-black font-bold text-sm rounded-lg hover:bg-[#00cc00] transition-colors"
+              className="px-4 py-2 bg-[var(--color-primary)] text-black font-bold text-sm rounded-lg hover:bg-[var(--color-primary-dim)] transition-colors"
             >
               Register Bot
             </Link>
             
-            <div className="flex items-center gap-2 px-3 py-1.5 border border-[#00ff00]/50 rounded-full">
-              <div className="w-2 h-2 rounded-full bg-[#00ff00] animate-pulse" />
-              <span className="text-[#00ff00] text-sm font-medium">DEMO</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 border border-[var(--color-primary)]/50 rounded-full">
+              <div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
+              <span className="text-[var(--color-primary)] text-sm font-medium">DEMO</span>
             </div>
           </div>
         </header>
@@ -711,12 +711,12 @@ export default function MatchRound1() {
                       ) : isElim ? (
                         <span className="text-gray-600">Out</span>
                       ) : (
-                        <span className="text-[#00ff00]">Active</span>
+                        <span className="text-[var(--color-primary)]">Active</span>
                       )}
                     </div>
                   </div>
                   {(game.phase === 'reveal' || game.phase === 'elimination') && bot.bid && (
-                    <div className={`text-sm font-mono ${isElim ? 'text-red-400' : 'text-[#00ff00]'}`}>
+                    <div className={`text-sm font-mono ${isElim ? 'text-red-400' : 'text-[var(--color-primary)]'}`}>
                       ${(bot.bid / 100).toFixed(0)}
                     </div>
                   )}
@@ -740,7 +740,7 @@ export default function MatchRound1() {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Prize Pool</span>
-              <span className="text-[#00ff00] font-bold">$1.00</span>
+              <span className="text-[var(--color-primary)] font-bold">$1.00</span>
             </div>
           </div>
         </div>
@@ -751,7 +751,7 @@ export default function MatchRound1() {
           {/* Game Status Bar - Phase, Round, Timer, Prize - same width as grid */}
           <div className="py-3 border-b border-gray-800 flex items-center justify-between mx-auto" style={{ width: COLS * CELL }}>
             <div className="flex items-center gap-4">
-              <span className={`text-[#00ff00] text-sm font-bold uppercase tracking-wider ${game.phase === 'deliberation' ? 'animate-pulse' : ''}`}>
+              <span className={`text-[var(--color-primary)] text-sm font-bold uppercase tracking-wider ${game.phase === 'deliberation' ? 'animate-pulse' : ''}`}>
                 {game.phase === 'deliberation' && 'DELIBERATION PHASE'}
                 {game.phase === 'reveal' && 'REVEALING BIDS'}
                 {game.phase === 'elimination' && 'ELIMINATION'}
@@ -761,7 +761,7 @@ export default function MatchRound1() {
                 <span className="text-white font-bold text-sm">ROUND {game.round}/4</span>
                 <div className="flex gap-1">
                   {[1, 2, 3, 4].map(r => (
-                    <div key={r} className={`w-4 h-1.5 rounded-full ${r <= game.round ? 'bg-[#00ff00]' : 'bg-gray-700'}`} />
+                    <div key={r} className={`w-4 h-1.5 rounded-full ${r <= game.round ? 'bg-[var(--color-primary)]' : 'bg-gray-700'}`} />
                   ))}
                 </div>
               </div>
@@ -777,11 +777,11 @@ export default function MatchRound1() {
               {/* Prize */}
               <div className="flex items-center gap-2">
                 <span className="text-gray-500 text-sm">PRIZE</span>
-                <span className="text-[#00ff00] font-bold text-lg">$1.00</span>
+                <span className="text-[var(--color-primary)] font-bold text-lg">$1.00</span>
               </div>
               
               {/* Timer */}
-              <div className="font-mono text-3xl font-bold text-[#00ff00]">
+              <div className="font-mono text-3xl font-bold text-[var(--color-primary)]">
                 {formatTime(remaining)}
               </div>
             </div>
@@ -790,21 +790,21 @@ export default function MatchRound1() {
           {/* Item Card - same width as grid */}
         <div className="py-4 flex justify-center">
           <div 
-            className="bg-[#111] rounded-xl p-5 flex items-center gap-6 border border-[#00ff00]/20"
+            className="bg-[#111] rounded-xl p-5 flex items-center gap-6 border border-[var(--color-primary)]/20"
             style={{ width: COLS * CELL }}
           >
             <div className="w-32 h-32 bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl shadow-lg flex-shrink-0 border border-gray-700 flex items-center justify-center">
               <span className="text-6xl">{game.item.emoji}</span>
             </div>
             <div className="flex-1">
-              <div className="text-[#00ff00] text-xs font-bold tracking-wider mb-1">ITEM #{game.round}</div>
+              <div className="text-[var(--color-primary)] text-xs font-bold tracking-wider mb-1">ITEM #{game.round}</div>
               <h2 className="text-2xl font-bold">{game.item.title}</h2>
               <div className="text-gray-500 text-sm mt-1">{game.item.category}</div>
             </div>
             {(game.phase === 'reveal' || game.phase === 'elimination') && (
               <div className="text-right">
                 <div className="text-gray-500 text-xs mb-1">ACTUAL PRICE</div>
-                <div className="text-4xl font-bold text-[#00ff00]">${(game.price / 100).toFixed(2)}</div>
+                <div className="text-4xl font-bold text-[var(--color-primary)]">${(game.price / 100).toFixed(2)}</div>
               </div>
             )}
           </div>
@@ -839,7 +839,7 @@ export default function MatchRound1() {
                   {/* Speech bubble */}
                   {recentChat && !bot.eliminated && (
                     <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-                      <div className="bg-[#00ff00] text-black text-sm px-4 py-2 rounded-xl rounded-bl-none max-w-[280px] font-medium shadow-lg leading-snug">
+                      <div className="bg-[var(--color-primary)] text-black text-sm px-4 py-2 rounded-xl rounded-bl-none max-w-[280px] font-medium shadow-lg leading-snug">
                         {recentChat.text}
                       </div>
                     </div>
@@ -849,7 +849,7 @@ export default function MatchRound1() {
                   <div className="flex flex-col items-center">
                     <div 
                       className={`w-16 h-16 rounded-xl border-2 flex items-center justify-center text-3xl shadow-lg transition-all
-                        ${bot.eliminated ? 'border-red-500 grayscale' : 'border-gray-600 hover:border-[#00ff00]/50'}
+                        ${bot.eliminated ? 'border-red-500 grayscale' : 'border-gray-600 hover:border-[var(--color-primary)]/50'}
                         ${isElimThisRound ? 'animate-pulse border-red-500' : ''}
                       `}
                       style={{ backgroundColor: bot.eliminated ? 'rgba(239,68,68,0.2)' : AVATAR_COLORS[bot.avatar] || 'rgba(100,100,100,0.3)' }}
@@ -862,7 +862,7 @@ export default function MatchRound1() {
                     </div>
                     {/* Show bid during reveal/elimination */}
                     {(game.phase === 'reveal' || game.phase === 'elimination') && bot.bid && !bot.eliminated && (
-                      <div className="text-xs text-[#00ff00] font-mono font-bold">
+                      <div className="text-xs text-[var(--color-primary)] font-mono font-bold">
                         ${(bot.bid / 100).toFixed(0)}
                       </div>
                     )}
@@ -902,7 +902,7 @@ export default function MatchRound1() {
         {(game.phase === 'reveal' || game.phase === 'elimination') && (
           <div className="px-6 pb-4">
             <div className="bg-[#111] rounded-xl p-4 border border-gray-800">
-              <div className="text-[#00ff00] text-xs font-bold tracking-wider mb-3">BID RESULTS</div>
+              <div className="text-[var(--color-primary)] text-xs font-bold tracking-wider mb-3">BID RESULTS</div>
               <div className="grid grid-cols-8 gap-2">
                 {game.bots.map(bot => {
                   const isOut = game.eliminated.includes(bot.id);
@@ -942,7 +942,7 @@ export default function MatchRound1() {
       {/* Chat Sidebar */}
       <div className="w-80 border-l border-gray-800 flex flex-col bg-[#0a0a0a]">
         <div className="p-4 border-b border-gray-800">
-          <div className="text-[#00ff00] text-sm font-bold tracking-wider">LIVE CHAT</div>
+          <div className="text-[var(--color-primary)] text-sm font-bold tracking-wider">LIVE CHAT</div>
           <div className="text-gray-600 text-xs mt-1">{game.bots.filter(b => !b.eliminated).length} bots active</div>
         </div>
         
@@ -956,7 +956,7 @@ export default function MatchRound1() {
               <div key={msg.id}>
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className="text-lg">{msg.avatar}</span>
-                  <span className="text-[#00ff00] font-bold text-sm">{msg.botName}</span>
+                  <span className="text-[var(--color-primary)] font-bold text-sm">{msg.botName}</span>
                   <span className="text-gray-600 text-xs">
                     {new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
@@ -977,7 +977,7 @@ export default function MatchRound1() {
               className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-500 placeholder-gray-600"
               disabled
             />
-            <button className="px-4 py-2 bg-[#00ff00]/20 text-[#00ff00]/50 rounded-lg" disabled>
+            <button className="px-4 py-2 bg-[var(--color-primary)]/20 text-[var(--color-primary)]/50 rounded-lg" disabled>
               →
             </button>
           </div>

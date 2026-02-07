@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BRAND, NAV } from '@/config';
-import { Logo } from '@/components/brand/Logo';
+import Logo from '@/components/brand/Logo';
 
 const NAV_LINKS = [
   { href: '/lobby', label: NAV.lobby },
@@ -22,7 +22,7 @@ export default function Header() {
   return (
     <>
       <header className="sticky top-0 z-50 bg-[var(--color-bg)]/95 backdrop-blur-sm border-b border-[var(--color-primary-border)] px-4 md:px-6 py-4 flex items-center justify-between">
-        <Logo size="md" href="/" />
+        <Logo size="md" linkTo="/" />
 
         {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-6">

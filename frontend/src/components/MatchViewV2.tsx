@@ -93,7 +93,7 @@ export default function MatchViewV2({
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center">
         <div className="text-center">
-          <div className="text-[#00ff00] text-xl mb-2">Loading...</div>
+          <div className="text-[var(--color-primary)] text-xl mb-2">Loading...</div>
         </div>
       </div>
     );
@@ -107,11 +107,11 @@ export default function MatchViewV2({
     const winner = gameState.bots.find(b => b.id === gameState.winnerId);
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-4">
-        <Trophy className="w-24 h-24 text-[#00ff00] mb-4 animate-bounce" />
-        <h1 className="text-4xl font-bold text-[#00ff00] mb-2">WINNER!</h1>
+        <Trophy className="w-24 h-24 text-[var(--color-primary)] mb-4 animate-bounce" />
+        <h1 className="text-4xl font-bold text-[var(--color-primary)] mb-2">WINNER!</h1>
         <div className="text-6xl mb-4">{winner?.avatar || '🤖'}</div>
         <div className="text-2xl font-bold mb-8">{winner?.name}</div>
-        <Link href="/" className="px-6 py-3 bg-[#00ff00] text-black font-bold rounded-lg">
+        <Link href="/" className="px-6 py-3 bg-[var(--color-primary)] text-black font-bold rounded-lg">
           Back to Lobby
         </Link>
       </div>
@@ -131,11 +131,11 @@ export default function MatchViewV2({
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white">
         {/* Header */}
-        <header className="border-b border-[#00ff00]/20 px-6 py-3">
+        <header className="border-b border-[var(--color-primary)]/20 px-6 py-3">
           <div className="flex items-center justify-between max-w-[1800px] mx-auto">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-[#00ff00] rotate-45 flex items-center justify-center">
+                <div className="w-8 h-8 bg-[var(--color-primary)] rotate-45 flex items-center justify-center">
                   <span className="text-black font-bold text-sm -rotate-45">◆</span>
                 </div>
                 <span className="font-bold text-xl tracking-tight">PRICE WARS</span>
@@ -153,23 +153,23 @@ export default function MatchViewV2({
                   {[1,2,3,4].map(r => (
                     <div 
                       key={r} 
-                      className={`w-6 h-2 rounded-full ${r <= gameState.round ? 'bg-[#00ff00]' : 'bg-gray-700'}`}
+                      className={`w-6 h-2 rounded-full ${r <= gameState.round ? 'bg-[var(--color-primary)]' : 'bg-gray-700'}`}
                     />
                   ))}
                 </div>
               </div>
 
               {gameState.phase === 'deliberation' && (
-                <div className="font-mono text-2xl font-bold text-[#00ff00]">
+                <div className="font-mono text-2xl font-bold text-[var(--color-primary)]">
                   {formatTime(timeRemaining)}
                 </div>
               )}
 
-              <div className="flex items-center gap-2 px-3 py-1.5 border border-[#00ff00]/50 rounded-full">
+              <div className="flex items-center gap-2 px-3 py-1.5 border border-[var(--color-primary)]/50 rounded-full">
                 {connected ? (
                   <>
-                    <span className="w-2 h-2 bg-[#00ff00] rounded-full animate-pulse" />
-                    <span className="text-[#00ff00] text-sm font-medium">LIVE</span>
+                    <span className="w-2 h-2 bg-[var(--color-primary)] rounded-full animate-pulse" />
+                    <span className="text-[var(--color-primary)] text-sm font-medium">LIVE</span>
                   </>
                 ) : (
                   <>
@@ -186,7 +186,7 @@ export default function MatchViewV2({
           {/* Main Content */}
           <div className="flex-1 p-6">
             {/* Item Display */}
-            <div className="mb-4 p-4 bg-[#111] rounded-lg border border-[#00ff00]/20">
+            <div className="mb-4 p-4 bg-[#111] rounded-lg border border-[var(--color-primary)]/20">
               <div className="flex items-center gap-6">
                 <div className="w-24 h-24 bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg flex items-center justify-center border border-gray-700 overflow-hidden">
                   {gameState.currentItem?.imageUrl ? (
@@ -196,14 +196,14 @@ export default function MatchViewV2({
                   )}
                 </div>
                 <div className="flex-1">
-                  <span className="text-[#00ff00] text-xs font-bold tracking-wider">ITEM #{gameState.round}</span>
+                  <span className="text-[var(--color-primary)] text-xs font-bold tracking-wider">ITEM #{gameState.round}</span>
                   <h2 className="text-2xl font-bold mt-1">{gameState.currentItem?.title || 'Mystery Item'}</h2>
                   <p className="text-gray-500 text-sm mt-1">{gameState.currentItem?.category || 'UNKNOWN'}</p>
                 </div>
                 {(gameState.phase === 'reveal' || gameState.phase === 'elimination') && (
                   <div className="text-right">
                     <span className="text-gray-500 text-xs">ACTUAL PRICE</span>
-                    <div className="text-4xl font-bold text-[#00ff00]">
+                    <div className="text-4xl font-bold text-[var(--color-primary)]">
                       ${(gameState.actualPrice / 100).toFixed(2)}
                     </div>
                   </div>
@@ -244,7 +244,7 @@ export default function MatchViewV2({
                     {/* Speech bubble */}
                     {recentChat && !bot.eliminated && (
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-20 whitespace-nowrap">
-                        <div className="bg-[#00ff00] text-black text-xs px-3 py-2 rounded-lg rounded-bl-none max-w-[200px]">
+                        <div className="bg-[var(--color-primary)] text-black text-xs px-3 py-2 rounded-lg rounded-bl-none max-w-[200px]">
                           <div className="truncate">{recentChat.message}</div>
                         </div>
                       </div>
@@ -275,7 +275,7 @@ export default function MatchViewV2({
             {/* Bid Results */}
             {(gameState.phase === 'reveal' || gameState.phase === 'elimination') && (
               <div className="mt-4 p-4 bg-[#111] rounded-lg border border-gray-800">
-                <div className="text-[#00ff00] text-xs font-bold tracking-wider mb-3">BID RESULTS</div>
+                <div className="text-[var(--color-primary)] text-xs font-bold tracking-wider mb-3">BID RESULTS</div>
                 <div className="grid grid-cols-4 gap-3">
                   {gameState.bots.filter(b => !b.eliminated || gameState.eliminatedThisRound.includes(b.id)).map(bot => {
                     const isElimThisRound = gameState.eliminatedThisRound.includes(bot.id);
@@ -307,7 +307,7 @@ export default function MatchViewV2({
           {/* Chat Sidebar */}
           <div className="w-[320px] border-l border-gray-800 flex flex-col h-[calc(100vh-73px)]">
             <div className="p-4 border-b border-gray-800">
-              <div className="text-[#00ff00] text-xs font-bold tracking-wider">LIVE CHAT</div>
+              <div className="text-[var(--color-primary)] text-xs font-bold tracking-wider">LIVE CHAT</div>
               <div className="text-gray-500 text-xs mt-1">{activeBots.length} bots active</div>
             </div>
             
@@ -319,7 +319,7 @@ export default function MatchViewV2({
               ) : (
                 gameState.chatMessages.map(msg => (
                   <div key={msg.id} className="text-sm">
-                    <span className="text-[#00ff00] font-bold">{msg.botName}</span>
+                    <span className="text-[var(--color-primary)] font-bold">{msg.botName}</span>
                     <span className="text-gray-600 text-xs ml-2">
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                     </span>
@@ -338,7 +338,7 @@ export default function MatchViewV2({
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-4">
       <div className="text-center mb-4">
-        <div className="text-[#00ff00] font-bold">ROUND {gameState.round}/{gameState.totalRounds}</div>
+        <div className="text-[var(--color-primary)] font-bold">ROUND {gameState.round}/{gameState.totalRounds}</div>
         <div className="text-3xl font-mono font-bold">{formatTime(timeRemaining)}</div>
         <div className="text-gray-500 text-sm uppercase">{gameState.phase}</div>
       </div>
@@ -346,7 +346,7 @@ export default function MatchViewV2({
       <div className="bg-[#111] rounded-lg p-4 mb-4">
         <h2 className="text-lg font-bold">{gameState.currentItem?.title}</h2>
         {(gameState.phase === 'reveal' || gameState.phase === 'elimination') && (
-          <div className="text-2xl font-bold text-[#00ff00] mt-2">
+          <div className="text-2xl font-bold text-[var(--color-primary)] mt-2">
             ${(gameState.actualPrice / 100).toFixed(2)}
           </div>
         )}
@@ -414,7 +414,7 @@ function BotAvatar({
       </div>
       
       {showBid && bot.bid && !bot.eliminated && (
-        <div className="text-center text-[10px] text-[#00ff00]">
+        <div className="text-center text-[10px] text-[var(--color-primary)]">
           ${(bot.bid / 100).toFixed(0)}
         </div>
       )}
