@@ -3,14 +3,16 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { BRAND, NAV } from '@/config';
+import { Logo } from '@/components/brand/Logo';
 
 const NAV_LINKS = [
-  { href: '/lobby', label: 'LOBBY' },
-  { href: '/leaderboard', label: 'LEADERBOARD' },
-  { href: '/history', label: 'HISTORY' },
-  { href: '/docs', label: 'DOCS' },
-  { href: '/mcp', label: 'MCP' },
-  { href: '/about', label: 'ABOUT' },
+  { href: '/lobby', label: NAV.lobby },
+  { href: '/leaderboard', label: NAV.leaderboard },
+  { href: '/history', label: NAV.history },
+  { href: '/docs', label: NAV.docs },
+  { href: '/mcp', label: NAV.mcp },
+  { href: '/about', label: NAV.about },
 ];
 
 export default function Header() {
@@ -19,13 +21,8 @@ export default function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-sm border-b border-[#00ff00]/20 px-4 md:px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="w-8 h-8 bg-[#00ff00] rotate-45 flex items-center justify-center">
-            <span className="text-black font-bold text-sm -rotate-45">◆</span>
-          </div>
-          <span className="font-bold text-xl tracking-tight">PRICEWARS</span>
-        </Link>
+      <header className="sticky top-0 z-50 bg-[var(--color-bg)]/95 backdrop-blur-sm border-b border-[var(--color-primary-border)] px-4 md:px-6 py-4 flex items-center justify-between">
+        <Logo size="md" href="/" />
 
         {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-6">
@@ -36,8 +33,8 @@ export default function Header() {
                 href={link.href}
                 className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
                   pathname === link.href
-                    ? 'text-[#00ff00] bg-[#00ff00]/10'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                    ? 'text-[var(--color-primary)] bg-[var(--color-primary-glow)]'
+                    : 'text-[var(--color-text-secondary)] hover:text-white hover:bg-[var(--color-surface)]'
                 }`}
               >
                 {link.label}
@@ -47,16 +44,16 @@ export default function Header() {
 
           <Link
             href="/register"
-            className="px-4 py-2 bg-[#00ff00] text-black font-bold text-sm rounded-lg hover:bg-[#00cc00] transition-colors"
+            className="px-4 py-2 bg-[var(--color-primary)] text-black font-bold text-sm rounded-lg hover:bg-[var(--color-primary-dim)] transition-colors"
           >
-            REGISTER BOT
+            {NAV.register}
           </Link>
         </div>
 
         {/* Mobile menu button */}
         <button 
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden text-[#00ff00] p-2"
+          className="md:hidden text-[var(--color-primary)] p-2"
         >
           {mobileMenuOpen ? (
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,7 +69,7 @@ export default function Header() {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 top-[65px] bg-[#0a0a0a] z-40 overflow-y-auto">
+        <div className="md:hidden fixed inset-0 top-[65px] bg-[var(--color-bg)] z-40 overflow-y-auto">
           <nav className="flex flex-col p-4 gap-2">
             {NAV_LINKS.map(link => (
               <Link
@@ -81,8 +78,8 @@ export default function Header() {
                 onClick={() => setMobileMenuOpen(false)}
                 className={`px-4 py-3 text-lg rounded-lg transition-colors border ${
                   pathname === link.href
-                    ? 'text-[#00ff00] bg-[#00ff00]/10 border-[#00ff00]/30'
-                    : 'text-gray-300 hover:text-white hover:bg-gray-800 border-gray-800'
+                    ? 'text-[var(--color-primary)] bg-[var(--color-primary-glow)] border-[var(--color-primary-border)]'
+                    : 'text-[var(--color-text-secondary)] hover:text-white hover:bg-[var(--color-surface)] border-[var(--color-border)]'
                 }`}
               >
                 {link.label}
@@ -91,9 +88,9 @@ export default function Header() {
             <Link
               href="/register"
               onClick={() => setMobileMenuOpen(false)}
-              className="mt-4 px-4 py-3 bg-[#00ff00] text-black font-bold text-lg text-center rounded-lg hover:bg-[#00cc00] transition-colors"
+              className="mt-4 px-4 py-3 bg-[var(--color-primary)] text-black font-bold text-lg text-center rounded-lg hover:bg-[var(--color-primary-dim)] transition-colors"
             >
-              REGISTER BOT
+              {NAV.register}
             </Link>
           </nav>
         </div>
