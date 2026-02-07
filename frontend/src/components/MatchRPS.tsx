@@ -409,40 +409,226 @@ export default function MatchRPS() {
              p.hasThrown ? '✓' : null,
   }));
 
-  // Main match view
-  return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
-      {/* Header */}
-      <header className="border-b border-[#00ff00]/20 px-6 py-3 flex items-center justify-between bg-[#0a0a0a] z-50">
-        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="w-8 h-8 bg-[#00ff00] rotate-45 flex items-center justify-center">
-            <span className="text-black font-bold text-sm -rotate-45">◆</span>
-          </div>
-          <span className="font-bold text-xl tracking-tight">ROCK PAPER SCISSORS</span>
-        </Link>
+  // Get recent speech for a player
+  const getRecentSpeech = (playerId: string): string | null => {
+    const bubble = chat.find(b => b.playerId === playerId && Date.now() - b.timestamp < 3000);
+    return bubble?.text || null;
+  };
 
-        <div className="flex items-center gap-6">
-          <nav className="flex items-center gap-1">
-            <Link href="/leaderboard" className="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
-              Leaderboard
-            </Link>
-            <Link href="/history" className="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
-              History
-            </Link>
-            <Link href="/docs" className="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
-              Docs
-            </Link>
-          </nav>
-          
-          <div className="flex items-center gap-2 px-3 py-1.5 border border-[#00ff00]/50 rounded-full">
-            <div className="w-2 h-2 rounded-full bg-[#00ff00] animate-pulse" />
-            <span className="text-[#00ff00] text-sm font-medium">DEMO</span>
+  // ============ MOBILE VIEW ============
+  const MobileView = () => (
+    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col md:hidden">
+      {/* Mobile Header */}
+      <header className="border-b border-[#00ff00]/20 px-4 py-3 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="w-6 h-6 bg-[#00ff00] rotate-45 flex items-center justify-center">
+            <span className="text-black font-bold text-xs -rotate-45">◆</span>
           </div>
+          <span className="font-bold text-lg">RPS</span>
+        </Link>
+        <div className="flex items-center gap-2 px-2 py-1 border border-[#00ff00]/50 rounded-full">
+          <div className="w-2 h-2 rounded-full bg-[#00ff00] animate-pulse" />
+          <span className="text-[#00ff00] text-xs font-medium">DEMO</span>
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="flex-1 flex">
+      {/* Mobile Status Bar */}
+      <div className="px-4 py-2 border-b border-gray-800 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-[#00ff00] text-xs font-bold uppercase">
+            {phase === 'throwing' && 'THROW PHASE'}
+            {phase === 'reveal' && 'REVEALING'}
+            {phase === 'between_rounds' && 'NEXT ROUND'}
+          </span>
+          <span className="text-gray-600 text-xs">R{round}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Score */}
+          <div className="flex items-center gap-1 text-lg font-mono font-bold">
+            <span className="text-[#00ff00]">{players[0].roundsWon}</span>
+            <span className="text-gray-500">-</span>
+            <span className="text-[#00ff00]">{players[1].roundsWon}</span>
+          </div>
+          {/* Timer */}
+          <span className="font-mono text-xl font-bold text-[#00ff00]">
+            {String(Math.floor(timer / 60)).padStart(2, '0')}:{String(timer % 60).padStart(2, '0')}
+          </span>
+        </div>
+      </div>
+
+      {/* Mobile Info Card */}
+      <div className="p-4 border-b border-gray-800">
+        <div className="text-center">
+          <div className="text-[#00ff00] text-xs font-bold mb-1">ROUND {round} • Best of 3</div>
+          <div className="font-bold">{players[0].name} vs {players[1].name}</div>
+        </div>
+      </div>
+
+      {/* Mobile Face-off: Two icons facing each other */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-6">
+        <div className="flex items-center justify-center gap-4 w-full max-w-sm">
+          {/* Player 1 */}
+          <div className="flex-1 flex flex-col items-center relative">
+            {/* Speech bubble */}
+            {getRecentSpeech(players[0].id) && (
+              <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-10">
+                <div className="bg-[#00ff00] text-black text-xs px-2 py-1.5 rounded-lg rounded-bl-none max-w-[100px] font-medium leading-tight">
+                  {getRecentSpeech(players[0].id)?.slice(0, 30)}...
+                </div>
+              </div>
+            )}
+            <div 
+              className="w-24 h-24 rounded-xl border-2 border-gray-600 flex items-center justify-center text-5xl mb-2"
+              style={{ backgroundColor: AVATAR_COLORS[players[0].avatar] }}
+            >
+              {players[0].avatar}
+            </div>
+            <div className="font-bold text-sm">{players[0].name}</div>
+            <div className="text-[#00ff00] text-xs">Rounds: {players[0].roundsWon}</div>
+            {/* Show throw during reveal */}
+            {phase === 'reveal' && players[0].choice && (
+              <div className="mt-2 text-4xl">{CHOICE_EMOJI[players[0].choice]}</div>
+            )}
+            {/* Show status during throwing */}
+            {phase === 'throwing' && (
+              <div className={`mt-2 text-xs ${players[0].hasThrown ? 'text-[#00ff00]' : 'text-yellow-400'}`}>
+                {players[0].hasThrown ? '✓ Locked' : 'Choosing...'}
+              </div>
+            )}
+          </div>
+
+          {/* VS */}
+          <div className="text-3xl font-bold text-[#00ff00]/50">VS</div>
+
+          {/* Player 2 */}
+          <div className="flex-1 flex flex-col items-center relative">
+            {/* Speech bubble */}
+            {getRecentSpeech(players[1].id) && (
+              <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-10">
+                <div className="bg-[#00ff00] text-black text-xs px-2 py-1.5 rounded-lg rounded-br-none max-w-[100px] font-medium leading-tight">
+                  {getRecentSpeech(players[1].id)?.slice(0, 30)}...
+                </div>
+              </div>
+            )}
+            <div 
+              className="w-24 h-24 rounded-xl border-2 border-gray-600 flex items-center justify-center text-5xl mb-2"
+              style={{ backgroundColor: AVATAR_COLORS[players[1].avatar] }}
+            >
+              {players[1].avatar}
+            </div>
+            <div className="font-bold text-sm">{players[1].name}</div>
+            <div className="text-[#00ff00] text-xs">Rounds: {players[1].roundsWon}</div>
+            {/* Show throw during reveal */}
+            {phase === 'reveal' && players[1].choice && (
+              <div className="mt-2 text-4xl">{CHOICE_EMOJI[players[1].choice]}</div>
+            )}
+            {/* Show status during throwing */}
+            {phase === 'throwing' && (
+              <div className={`mt-2 text-xs ${players[1].hasThrown ? 'text-[#00ff00]' : 'text-yellow-400'}`}>
+                {players[1].hasThrown ? '✓ Locked' : 'Choosing...'}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Result banner during reveal */}
+        {phase === 'reveal' && rounds.length > 0 && (
+          <div className="mt-6 text-center">
+            {rounds[rounds.length - 1].winner === 'draw' ? (
+              <div className="text-yellow-400 text-xl font-bold">DRAW! Replaying...</div>
+            ) : (
+              <div className="text-[#00ff00] text-xl font-bold">
+                {rounds[rounds.length - 1].winner === 'p1' ? players[0].name : players[1].name} WINS ROUND!
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Mobile Round History */}
+      {rounds.length > 0 && (
+        <div className="px-4 py-3 border-t border-gray-800">
+          <div className="text-[#00ff00] text-xs font-bold mb-2">ROUND HISTORY</div>
+          <div className="flex gap-2 overflow-x-auto">
+            {rounds.map((r, idx) => (
+              <div 
+                key={idx}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm ${
+                  r.winner === 'draw' ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-gray-900/50 border-gray-800'
+                }`}
+              >
+                <span className="text-xl">{r.p1Choice ? CHOICE_EMOJI[r.p1Choice] : '❓'}</span>
+                <span className="text-gray-600 text-xs">vs</span>
+                <span className="text-xl">{r.p2Choice ? CHOICE_EMOJI[r.p2Choice] : '❓'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Chat */}
+      <div className="border-t border-gray-800">
+        <div className="px-4 py-2 border-b border-gray-800">
+          <span className="text-[#00ff00] text-xs font-bold">LIVE CHAT</span>
+        </div>
+        <div className="p-4 space-y-2 max-h-32 overflow-y-auto">
+          {chat.length === 0 ? (
+            <div className="text-gray-600 text-sm text-center">Waiting for chat...</div>
+          ) : (
+            [...chat].reverse().slice(0, 5).map((msg, idx) => {
+              const player = players.find(p => p.id === msg.playerId);
+              return (
+                <div key={idx} className="text-sm">
+                  <span className="text-[#00ff00] font-bold">{player?.name}:</span>
+                  <span className="text-gray-400 ml-2">{msg.text}</span>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ============ DESKTOP VIEW ============
+  return (
+    <>
+      {/* Mobile */}
+      <MobileView />
+
+      {/* Desktop */}
+      <div className="min-h-screen bg-[#0a0a0a] text-white flex-col hidden md:flex">
+        {/* Header */}
+        <header className="border-b border-[#00ff00]/20 px-6 py-3 flex items-center justify-between bg-[#0a0a0a] z-50">
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <div className="w-8 h-8 bg-[#00ff00] rotate-45 flex items-center justify-center">
+              <span className="text-black font-bold text-sm -rotate-45">◆</span>
+            </div>
+            <span className="font-bold text-xl tracking-tight">ROCK PAPER SCISSORS</span>
+          </Link>
+
+          <div className="flex items-center gap-6">
+            <nav className="flex items-center gap-1">
+              <Link href="/leaderboard" className="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
+                Leaderboard
+              </Link>
+              <Link href="/history" className="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
+                History
+              </Link>
+              <Link href="/docs" className="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
+                Docs
+              </Link>
+            </nav>
+            
+            <div className="flex items-center gap-2 px-3 py-1.5 border border-[#00ff00]/50 rounded-full">
+              <div className="w-2 h-2 rounded-full bg-[#00ff00] animate-pulse" />
+              <span className="text-[#00ff00] text-sm font-medium">DEMO</span>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <div className="flex-1 flex">
         {/* Left Sidebar - Player 1 */}
         <div className="w-64 border-r border-gray-800 flex flex-col bg-[#0a0a0a]">
           <div className="p-4 border-b border-gray-800">
@@ -513,30 +699,34 @@ export default function MatchRPS() {
           {/* Info Card */}
           <div className="py-4 flex justify-center">
             <div 
-              className="bg-[#111] rounded-xl p-5 flex items-center gap-6 border border-[#00ff00]/20"
+              className="bg-[#111] rounded-xl p-5 border border-[#00ff00]/20"
               style={{ width: GRID_WIDTH }}
             >
-              <div className="flex items-center gap-6 text-5xl">
-                <span>🪨</span>
-                <span>📄</span>
-                <span>✂️</span>
+              {/* Top row: Icons + Title */}
+              <div className="flex items-center gap-6 mb-4">
+                <div className="flex items-center gap-4 text-4xl">
+                  <span>🪨</span>
+                  <span>📄</span>
+                  <span>✂️</span>
+                </div>
+                <div className="flex-1">
+                  <div className="text-[#00ff00] text-xs font-bold tracking-wider mb-1">ROUND {round}</div>
+                  <h2 className="text-2xl font-bold">{players[0].name} vs {players[1].name}</h2>
+                  <div className="text-gray-500 text-sm mt-1">First to 2 wins</div>
+                </div>
               </div>
-              <div className="flex-1">
-                <div className="text-[#00ff00] text-xs font-bold tracking-wider mb-1">ROUND {round}</div>
-                <h2 className="text-2xl font-bold">{players[0].name} vs {players[1].name}</h2>
-                <div className="text-gray-500 text-sm mt-1">First to 2 wins</div>
-              </div>
-              {phase === 'reveal' && (
-                <div className="text-right">
+              {/* Result row (when revealing) */}
+              {phase === 'reveal' && rounds.length > 0 && (
+                <div className="pt-4 border-t border-gray-800 text-center">
                   <div className="text-gray-500 text-xs mb-1">RESULT</div>
-                  <div className="text-3xl font-bold">
-                    {rounds.length > 0 && rounds[rounds.length - 1].winner === 'draw' ? (
-                      <span className="text-yellow-400">DRAW!</span>
-                    ) : rounds.length > 0 ? (
+                  <div className="text-2xl font-bold">
+                    {rounds[rounds.length - 1].winner === 'draw' ? (
+                      <span className="text-yellow-400">DRAW! Replaying...</span>
+                    ) : (
                       <span className="text-[#00ff00]">
-                        {rounds[rounds.length - 1].winner === 'p1' ? players[0].name : players[1].name} WINS!
+                        {rounds[rounds.length - 1].winner === 'p1' ? players[0].name : players[1].name} WINS THE ROUND!
                       </span>
-                    ) : null}
+                    )}
                   </div>
                 </div>
               )}
@@ -656,5 +846,6 @@ export default function MatchRPS() {
         </div>
       </div>
     </div>
+    </>
   );
 }
