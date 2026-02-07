@@ -1,366 +1,548 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 
-// ========== CONSTANTS ==========
-const GRID_WIDTH = 14;
-const GRID_HEIGHT = 8;
-const CELL_SIZE = 48; // Smaller cells to fit 16 bots
-const PHASES = ['lava_spread', 'deliberation', 'commit', 'resolve'] as const;
-const PHASE_LABELS: Record<string, string> = {
-  lava_spread: 'LAVA SPREADING',
-  deliberation: 'DELIBERATION',
-  commit: 'COMMIT MOVES',
-  resolve: 'RESOLVING',
-  finished: 'MATCH OVER',
-};
+// ========== SOUND EFFECTS (same as PRICEWARS) ==========
+const audioContextRef = { current: null as AudioContext | null };
 
-// Demo bot data - 16 bots
-const DEMO_BOTS = [
-  { id: 'bot-0', name: 'GROK-V3', avatar: '🤖' },
-  { id: 'bot-1', name: 'SNIPE-B', avatar: '🦾' },
-  { id: 'bot-2', name: 'ARCH-V', avatar: '👾' },
-  { id: 'bot-3', name: 'NEO-BOT', avatar: '💎' },
-  { id: 'bot-4', name: 'PYRO-X', avatar: '🔥' },
-  { id: 'bot-5', name: 'FROST', avatar: '❄️' },
-  { id: 'bot-6', name: 'SHADOW', avatar: '👤' },
-  { id: 'bot-7', name: 'BLITZ', avatar: '⚡' },
-  { id: 'bot-8', name: 'VENOM', avatar: '🐍' },
-  { id: 'bot-9', name: 'TITAN', avatar: '🗿' },
-  { id: 'bot-10', name: 'NOVA', avatar: '💫' },
-  { id: 'bot-11', name: 'APEX', avatar: '🦅' },
-  { id: 'bot-12', name: 'CIPHER', avatar: '🔮' },
-  { id: 'bot-13', name: 'OMEGA', avatar: '🎯' },
-  { id: 'bot-14', name: 'STORM', avatar: '🌪️' },
-  { id: 'bot-15', name: 'BYTE', avatar: '💻' },
-];
+function playBotSound() {
+  try {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    const ctx = audioContextRef.current;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const baseFreq = 500 + Math.random() * 300;
+    osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.2, ctx.currentTime + 0.05);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.8, ctx.currentTime + 0.1);
+    osc.type = Math.random() > 0.5 ? 'sine' : 'triangle';
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.15);
+  } catch (e) {}
+}
 
-const DEMO_CHAT = [
-  { bot: 'GROK-V3', text: "I'm going top right, anyone else?" },
-  { bot: 'SNIPE-B', text: "Sure, I'll avoid that area 😏" },
-  { bot: 'ARCH-V', text: "Don't trust SNIPE, he lies every round" },
-  { bot: 'NEO-BOT', text: "Alliance with PYRO, we split bottom" },
-  { bot: 'PYRO-X', text: "Confirmed. NEO is solid." },
-  { bot: 'FROST', text: "Everyone targeting me? I see how it is" },
-  { bot: 'SHADOW', text: "..." },
-  { bot: 'BLITZ', text: "LEEROY JENKINS" },
-];
+// ========== TYPES ==========
+type Phase = 'deliberation' | 'commit' | 'resolve' | 'lava_spread' | 'finished';
 
-interface BotState {
+interface Bot {
   id: string;
   name: string;
   avatar: string;
-  x: number;
-  y: number;
   eliminated: boolean;
-  targetX?: number;
-  targetY?: number;
+  col: number;
+  row: number;
 }
 
-interface TileState {
-  isLava: boolean;
-  isWarning: boolean; // About to become lava
+interface ChatMsg {
+  id: string;
+  botId: string;
+  botName: string;
+  avatar: string;
+  text: string;
+  time: number;
 }
 
-export default function MatchFloorLava() {
-  const [phase, setPhase] = useState<string>('deliberation');
-  const [round, setRound] = useState(1);
-  const [timer, setTimer] = useState(45);
-  const [bots, setBots] = useState<BotState[]>([]);
-  const [grid, setGrid] = useState<TileState[][]>([]);
-  const [chatMessages, setChatMessages] = useState(DEMO_CHAT.slice(0, 4));
-  const [isMobile, setIsMobile] = useState(false);
+interface Game {
+  phase: Phase;
+  round: number;
+  startTime: number;
+  bots: Bot[];
+  chat: ChatMsg[];
+  grid: boolean[][]; // true = lava, false = safe
+  eliminated: string[];
+}
 
-  // Initialize grid and bots
-  useEffect(() => {
-    // Check mobile
-    setIsMobile(window.innerWidth < 768);
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
+// ========== CONSTANTS (same as PRICEWARS) ==========
+const COLS = 14;
+const ROWS = 8;
+const CELL = 72;
 
-    // Initialize all-safe grid (16 players = 100% safe)
-    const newGrid: TileState[][] = [];
-    for (let y = 0; y < GRID_HEIGHT; y++) {
-      newGrid[y] = [];
-      for (let x = 0; x < GRID_WIDTH; x++) {
-        newGrid[y][x] = { isLava: false, isWarning: false };
-      }
+const PHASE_MS = {
+  deliberation: 45000,
+  commit: 15000,
+  resolve: 5000,
+  lava_spread: 3000,
+};
+
+const AVATAR_COLORS: Record<string, string> = {
+  '🤖': 'rgba(59, 130, 246, 0.3)',
+  '🦾': 'rgba(234, 179, 8, 0.3)',
+  '👾': 'rgba(168, 85, 247, 0.3)',
+  '🔮': 'rgba(236, 72, 153, 0.3)',
+  '🧠': 'rgba(244, 114, 182, 0.3)',
+  '⚡': 'rgba(250, 204, 21, 0.3)',
+  '💎': 'rgba(34, 211, 238, 0.3)',
+  '🎯': 'rgba(239, 68, 68, 0.3)',
+  '🔥': 'rgba(249, 115, 22, 0.3)',
+  '❄️': 'rgba(147, 197, 253, 0.3)',
+  '👤': 'rgba(156, 163, 175, 0.3)',
+  '🐍': 'rgba(34, 197, 94, 0.3)',
+  '🗿': 'rgba(168, 162, 158, 0.3)',
+  '💫': 'rgba(251, 191, 36, 0.3)',
+  '🦅': 'rgba(120, 113, 108, 0.3)',
+  '💻': 'rgba(99, 102, 241, 0.3)',
+};
+
+const CHAT_LINES = [
+  "I'm going top right, anyone else?",
+  "Sure, I'll avoid that area 😏",
+  "Don't trust SNIPE, he lies every round",
+  "Alliance with PYRO, we split bottom",
+  "Confirmed. NEO is solid.",
+  "Everyone targeting me? I see how it is",
+  "...",
+  "LEEROY JENKINS",
+  "Taking the corner. Stay away.",
+  "Let's coordinate - I go left, you go right",
+  "I don't trust any of you",
+  "Random tile, let's see what happens",
+  "Calculating optimal position...",
+  "I'll remember this betrayal",
+  "Solo play. Don't follow me.",
+  "Who's going center?",
+];
+
+// ========== INIT ==========
+function createBots(): Bot[] {
+  const names = ['GROK-V3', 'SNIPE-BOT', 'ARCH-V', 'HYPE-AI', 'BID-LORD', 'FLUX-8', 'NEO-BOT', 'ZEN-BOT',
+                 'PYRO-X', 'FROST', 'SHADOW', 'VENOM', 'TITAN', 'NOVA', 'APEX', 'CIPHER'];
+  const avatars = ['🤖', '🦾', '👾', '🔮', '🧠', '⚡', '💎', '🎯', '🔥', '❄️', '👤', '🐍', '🗿', '💫', '🦅', '💻'];
+  
+  // Random positions for 16 bots
+  const positions: { col: number; row: number }[] = [];
+  const used = new Set<string>();
+  
+  for (let i = 0; i < 16; i++) {
+    let col, row;
+    do {
+      col = 1 + Math.floor(Math.random() * (COLS - 2));
+      row = 1 + Math.floor(Math.random() * (ROWS - 2));
+    } while (used.has(`${col},${row}`));
+    used.add(`${col},${row}`);
+    positions.push({ col, row });
+  }
+  
+  return names.map((name, i) => ({
+    id: `bot-${i}`,
+    name,
+    avatar: avatars[i],
+    eliminated: false,
+    col: positions[i].col,
+    row: positions[i].row,
+  }));
+}
+
+function createGame(): Game {
+  // Start with all safe tiles (16 players = 100%)
+  const grid: boolean[][] = [];
+  for (let y = 0; y < ROWS; y++) {
+    grid[y] = [];
+    for (let x = 0; x < COLS; x++) {
+      grid[y][x] = false; // false = safe
     }
-    setGrid(newGrid);
+  }
+  
+  return {
+    phase: 'deliberation',
+    round: 1,
+    startTime: Date.now(),
+    bots: createBots(),
+    chat: [],
+    grid,
+    eliminated: [],
+  };
+}
 
-    // Spawn bots on random safe tiles
-    const positions = new Set<string>();
-    const newBots: BotState[] = DEMO_BOTS.map((bot) => {
-      let x, y;
-      do {
-        x = Math.floor(Math.random() * GRID_WIDTH);
-        y = Math.floor(Math.random() * GRID_HEIGHT);
-      } while (positions.has(`${x},${y}`));
-      positions.add(`${x},${y}`);
-      return { ...bot, x, y, eliminated: false };
-    });
-    setBots(newBots);
+function formatTime(ms: number): string {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+}
 
-    return () => window.removeEventListener('resize', handleResize);
+// ========== COMPONENT ==========
+export default function MatchFloorLava() {
+  const [game, setGame] = useState<Game | null>(null);
+  const [now, setNow] = useState(Date.now());
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const prevChatLengthRef = useRef(0);
+
+  // Initialize
+  useEffect(() => {
+    setGame(createGame());
   }, []);
 
-  // Timer countdown
+  // Timer tick
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTimer(t => {
-        if (t <= 1) {
-          // Cycle through phases
-          if (phase === 'deliberation') {
-            setPhase('commit');
-            return 15;
-          } else if (phase === 'commit') {
-            setPhase('resolve');
-            return 5;
-          } else if (phase === 'resolve') {
-            // Spread lava and start new round
-            spreadLava();
-            setRound(r => r + 1);
-            setPhase('deliberation');
-            return 45;
-          }
-          return t;
-        }
-        return t - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [phase]);
-
-  // Bot wandering during deliberation
-  useEffect(() => {
-    if (phase !== 'deliberation') return;
-
-    const interval = setInterval(() => {
-      setBots(prev => prev.map(bot => {
-        if (bot.eliminated || Math.random() > 0.3) return bot;
-
-        // Find adjacent safe tile
-        const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
-        const [dx, dy] = dirs[Math.floor(Math.random() * dirs.length)];
-        const newX = Math.max(0, Math.min(GRID_WIDTH - 1, bot.x + dx));
-        const newY = Math.max(0, Math.min(GRID_HEIGHT - 1, bot.y + dy));
-
-        // Check if tile is safe and not occupied
-        if (!grid[newY]?.[newX]?.isLava) {
-          return { ...bot, x: newX, y: newY };
-        }
-        return bot;
-      }));
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, [phase, grid]);
-
-  // Rotate chat messages
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setChatMessages(prev => {
-        const next = [...prev];
-        next.shift();
-        const newMsg = DEMO_CHAT[Math.floor(Math.random() * DEMO_CHAT.length)];
-        next.push(newMsg);
-        return next;
-      });
-    }, 3000);
+    const interval = setInterval(() => setNow(Date.now()), 100);
     return () => clearInterval(interval);
   }, []);
 
-  const spreadLava = useCallback(() => {
-    setGrid(prev => {
-      const newGrid = prev.map(row => row.map(cell => ({ ...cell })));
-      
-      // Count safe tiles
-      let safeTiles: { x: number; y: number }[] = [];
-      for (let y = 0; y < GRID_HEIGHT; y++) {
-        for (let x = 0; x < GRID_WIDTH; x++) {
-          if (!newGrid[y][x].isLava) {
-            safeTiles.push({ x, y });
-          }
+  // Chat sound effect
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (game && game.chat.length > prevChatLengthRef.current) {
+      playBotSound();
+    }
+    prevChatLengthRef.current = game?.chat.length || 0;
+  }, [game?.chat.length]);
+
+  // Phase management + bot chat + movement
+  useEffect(() => {
+    if (!game) return;
+
+    const elapsed = now - game.startTime;
+    const phaseDuration = PHASE_MS[game.phase as keyof typeof PHASE_MS] || 5000;
+
+    // Auto-progress phases
+    if (elapsed >= phaseDuration) {
+      setGame(g => {
+        if (!g) return g;
+        
+        if (g.phase === 'deliberation') {
+          return { ...g, phase: 'commit' as Phase, startTime: Date.now() };
         }
-      }
+        if (g.phase === 'commit') {
+          return { ...g, phase: 'resolve' as Phase, startTime: Date.now() };
+        }
+        if (g.phase === 'resolve') {
+          // Spread lava and start new round
+          const newGrid = g.grid.map(row => [...row]);
+          let safeCount = 0;
+          const safeTiles: { x: number; y: number }[] = [];
+          
+          for (let y = 0; y < ROWS; y++) {
+            for (let x = 0; x < COLS; x++) {
+              if (!newGrid[y][x]) {
+                safeCount++;
+                safeTiles.push({ x, y });
+              }
+            }
+          }
+          
+          // Convert 30% of safe tiles to lava
+          const toConvert = Math.max(1, Math.floor(safeTiles.length * 0.3));
+          for (let i = 0; i < toConvert; i++) {
+            const idx = Math.floor(Math.random() * safeTiles.length);
+            const { x, y } = safeTiles[idx];
+            newGrid[y][x] = true;
+            safeTiles.splice(idx, 1);
+          }
+          
+          // Move bots to random safe tiles
+          const newBots = g.bots.map(bot => {
+            if (bot.eliminated || safeTiles.length === 0) return bot;
+            const idx = Math.floor(Math.random() * safeTiles.length);
+            const tile = safeTiles[idx];
+            return { ...bot, col: tile.x, row: tile.y };
+          });
+          
+          return {
+            ...g,
+            phase: 'deliberation' as Phase,
+            round: g.round + 1,
+            startTime: Date.now(),
+            grid: newGrid,
+            bots: newBots,
+          };
+        }
+        return g;
+      });
+    }
 
-      // Convert 50% to lava
-      const toConvert = Math.max(1, Math.floor(safeTiles.length * 0.3));
-      for (let i = 0; i < toConvert; i++) {
-        const idx = Math.floor(Math.random() * safeTiles.length);
-        const { x, y } = safeTiles[idx];
-        newGrid[y][x].isLava = true;
-        safeTiles.splice(idx, 1);
-      }
+    // Bot chat during deliberation
+    if (game.phase === 'deliberation') {
+      const chatInterval = setInterval(() => {
+        setGame(g => {
+          if (!g || g.phase !== 'deliberation') return g;
+          const aliveBots = g.bots.filter(b => !b.eliminated);
+          if (aliveBots.length === 0) return g;
+          
+          const bot = aliveBots[Math.floor(Math.random() * aliveBots.length)];
+          const text = CHAT_LINES[Math.floor(Math.random() * CHAT_LINES.length)];
+          
+          const newChat = [...g.chat, {
+            id: `msg-${Date.now()}`,
+            botId: bot.id,
+            botName: bot.name,
+            avatar: bot.avatar,
+            text,
+            time: Date.now(),
+          }].slice(-50);
+          
+          return { ...g, chat: newChat };
+        });
+      }, 2500);
 
-      return newGrid;
-    });
+      // Bot movement during deliberation
+      const moveInterval = setInterval(() => {
+        setGame(g => {
+          if (!g || g.phase !== 'deliberation') return g;
+          
+          return {
+            ...g,
+            bots: g.bots.map(bot => {
+              if (bot.eliminated || Math.random() > 0.3) return bot;
+              
+              // Find adjacent safe tile
+              const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+              const [dx, dy] = dirs[Math.floor(Math.random() * dirs.length)];
+              const newCol = Math.max(0, Math.min(COLS - 1, bot.col + dx));
+              const newRow = Math.max(0, Math.min(ROWS - 1, bot.row + dy));
+              
+              // Check if safe
+              if (!g.grid[newRow]?.[newCol]) {
+                return { ...bot, col: newCol, row: newRow };
+              }
+              return bot;
+            }),
+          };
+        });
+      }, 400);
 
-    // Eliminate bots on lava
-    setBots(prev => prev.map(bot => {
-      if (bot.eliminated) return bot;
-      if (grid[bot.y]?.[bot.x]?.isLava) {
-        return { ...bot, eliminated: true };
-      }
-      return bot;
-    }));
-  }, [grid]);
+      return () => {
+        clearInterval(chatInterval);
+        clearInterval(moveInterval);
+      };
+    }
+  }, [game, now]);
 
-  const aliveBots = bots.filter(b => !b.eliminated);
-  const safeTileCount = grid.flat().filter(t => !t.isLava).length;
+  if (!game) return null;
 
-  // ========== RENDER ==========
+  const elapsed = now - game.startTime;
+  const duration = PHASE_MS[game.phase as keyof typeof PHASE_MS] || 5000;
+  const remaining = duration - elapsed;
+  const aliveBots = game.bots.filter(b => !b.eliminated);
+  const safeTileCount = game.grid.flat().filter(t => !t).length;
+
+  // ============ DESKTOP VIEW (same layout as PRICEWARS) ============
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-white">
-      {/* Header */}
-      <div className="border-b border-[var(--color-primary)]/20 px-4 py-3">
-        <div className="flex items-center justify-between max-w-6xl mx-auto">
-          <div className="flex items-center gap-4">
-            <span className="text-[var(--color-primary)] font-bold text-sm uppercase animate-pulse">
-              {PHASE_LABELS[phase] || phase.toUpperCase()}
-            </span>
-            <span className="text-gray-500">|</span>
-            <span className="text-white font-bold">ROUND {round}</span>
+    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
+      {/* Main Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Sidebar - Bot Roster */}
+        <div className="w-64 border-r border-gray-800 flex flex-col bg-[#0a0a0a]">
+          <div className="p-4 border-b border-gray-800">
+            <div className="text-white text-sm font-bold">COMPETITORS</div>
+            <div className="text-gray-600 text-xs mt-1">{aliveBots.length} alive • {safeTileCount} safe tiles</div>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-gray-500 text-sm">
-              🔥 {aliveBots.length} alive • {safeTileCount} safe tiles
-            </span>
-            <div className="font-mono text-2xl font-bold text-[var(--color-primary)]">
-              {String(Math.floor(timer / 60)).padStart(2, '0')}:{String(timer % 60).padStart(2, '0')}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-col lg:flex-row max-w-7xl mx-auto p-4 gap-4">
-        {/* Left: Bot List */}
-        <div className="lg:w-48 flex-shrink-0">
-          <div className="text-gray-500 text-xs font-bold tracking-wider mb-3">
-            SURVIVORS ({aliveBots.length}/{DEMO_BOTS.length})
-          </div>
-          <div className="grid grid-cols-4 lg:grid-cols-2 gap-2">
-            {bots.map(bot => (
-              <div
-                key={bot.id}
-                className={`p-2 rounded-lg text-center transition-all ${
-                  bot.eliminated
-                    ? 'opacity-30 bg-red-900/20'
-                    : 'bg-[var(--color-surface)] border border-[var(--color-border)]'
-                }`}
-              >
-                <div className="text-xl">{bot.avatar}</div>
-                <div className="text-[10px] font-bold truncate">{bot.name}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Center: Grid */}
-        <div className="flex-1 flex justify-center">
-          <div
-            className="relative rounded-lg overflow-hidden border border-[var(--color-border)]"
-            style={{
-              width: GRID_WIDTH * CELL_SIZE,
-              height: GRID_HEIGHT * CELL_SIZE,
-              background: '#0a0a0a',
-            }}
-          >
-            {/* Grid cells */}
-            {grid.map((row, y) =>
-              row.map((cell, x) => (
-                <div
-                  key={`${x}-${y}`}
-                  className={`absolute transition-all duration-300 ${
-                    cell.isLava
-                      ? 'bg-gradient-to-br from-orange-600 to-red-700'
-                      : 'bg-[var(--color-surface)] border border-[var(--color-border)]/30'
+        
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {game.bots.map(bot => {
+              const isElim = bot.eliminated;
+              
+              return (
+                <div 
+                  key={bot.id}
+                  className={`p-3 rounded-lg border transition-all ${
+                    isElim 
+                      ? 'bg-gray-900/30 border-gray-800/50 opacity-40' 
+                      : 'bg-gray-900/50 border-gray-800 hover:border-gray-700'
                   }`}
-                  style={{
-                    left: x * CELL_SIZE,
-                    top: y * CELL_SIZE,
-                    width: CELL_SIZE - 1,
-                    height: CELL_SIZE - 1,
-                  }}
                 >
-                  {cell.isLava && (
-                    <div className="absolute inset-0 flex items-center justify-center text-lg opacity-50">
-                      🔥
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl relative ${
+                        isElim ? 'grayscale' : ''
+                      }`}
+                      style={{ backgroundColor: isElim ? 'rgba(100,100,100,0.2)' : AVATAR_COLORS[bot.avatar] }}
+                    >
+                      {bot.avatar}
+                      {isElim && <span className="absolute text-red-500 text-lg">✕</span>}
                     </div>
-                  )}
+                    <div className="flex-1 min-w-0">
+                      <div className={`font-bold text-sm truncate ${isElim ? 'text-gray-500 line-through' : ''}`}>
+                        {bot.name}
+                      </div>
+                      <div className="text-gray-500 text-xs">
+                        {isElim ? (
+                          <span className="text-gray-600">Scrapped</span>
+                        ) : (
+                          <span className="text-[var(--color-primary)]">Active</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              ))
-            )}
+              );
+            })}
+          </div>
 
-            {/* Bots */}
-            {bots.map(bot => !bot.eliminated && (
-              <div
-                key={bot.id}
-                className="absolute transition-all duration-300 ease-out flex flex-col items-center"
-                style={{
-                  left: bot.x * CELL_SIZE + CELL_SIZE / 2,
-                  top: bot.y * CELL_SIZE + CELL_SIZE / 2,
-                  transform: 'translate(-50%, -50%)',
-                  zIndex: 10 + bot.y,
-                }}
-              >
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center text-xl border-2 border-[var(--color-primary)]/50 bg-[var(--color-bg)]"
-                >
-                  {bot.avatar}
-                </div>
-                <div className="text-[8px] font-bold mt-0.5 text-[var(--color-primary)] bg-black/80 px-1 rounded">
-                  {bot.name}
-                </div>
+          {/* Match Info */}
+          <div className="p-4 border-t border-gray-800">
+            <div className="text-xs text-gray-600 mb-2">MATCH INFO</div>
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Players</span>
+                <span className="text-white">16 bots</span>
               </div>
-            ))}
+              <div className="flex justify-between">
+                <span className="text-gray-500">Safe Tiles</span>
+                <span className="text-white">{safeTileCount}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Prize Pool</span>
+                <span className="text-[var(--color-primary)] font-bold">$5.00</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Right: Chat */}
-        <div className="lg:w-64 flex-shrink-0">
-          <div className="text-gray-500 text-xs font-bold tracking-wider mb-3">DELIBERATION CHAT</div>
-          <div className="bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)] p-3 space-y-2">
-            {chatMessages.map((msg, idx) => (
-              <div key={idx} className="text-sm">
-                <span className="text-[var(--color-primary)] font-bold">{msg.bot}:</span>
-                <span className="text-gray-400 ml-1">{msg.text}</span>
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Game Status Bar */}
+          <div className="py-3 border-b border-gray-800 flex items-center justify-between mx-auto" style={{ width: COLS * CELL }}>
+            <div className="flex items-center gap-4">
+              <span className={`text-[var(--color-primary)] text-sm font-bold uppercase tracking-wider ${game.phase === 'deliberation' ? 'animate-pulse' : ''}`}>
+                {game.phase === 'deliberation' && 'DELIBERATION PHASE'}
+                {game.phase === 'commit' && 'COMMIT MOVES'}
+                {game.phase === 'resolve' && 'RESOLVING'}
+                {game.phase === 'lava_spread' && 'LAVA SPREADING'}
+              </span>
+              <span className="text-gray-700">|</span>
+              <span className="text-white font-bold text-sm">ROUND {game.round}</span>
+            </div>
+            
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2 text-gray-500">
+                <span className="text-sm">🔥</span>
+                <span className="text-sm">{aliveBots.length} alive</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500 text-sm">PRIZE</span>
+                <span className="text-[var(--color-primary)] font-bold text-lg">$5.00</span>
+              </div>
+              <div className="font-mono text-3xl font-bold text-[var(--color-primary)]">
+                {formatTime(remaining)}
+              </div>
+            </div>
+          </div>
+
+          {/* Grid Area */}
+          <div className="flex-1 flex items-center justify-center px-6 pb-6 pt-4">
+            <div 
+              className="relative bg-[#0d0d0d] rounded-xl overflow-hidden border border-gray-800 shadow-2xl"
+              style={{ 
+                width: COLS * CELL, 
+                height: ROWS * CELL,
+              }}
+            >
+              {/* Grid tiles */}
+              {game.grid.map((row, y) =>
+                row.map((isLava, x) => (
+                  <div
+                    key={`${x}-${y}`}
+                    className={`absolute transition-all duration-500 ${
+                      isLava
+                        ? 'bg-gradient-to-br from-orange-600 to-red-800'
+                        : 'bg-[#111] border border-gray-800/30'
+                    }`}
+                    style={{
+                      left: x * CELL,
+                      top: y * CELL,
+                      width: CELL - 1,
+                      height: CELL - 1,
+                    }}
+                  >
+                    {isLava && (
+                      <div className="absolute inset-0 flex items-center justify-center text-2xl opacity-40">
+                        🔥
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+
+              {/* Bots */}
+              {game.bots.map(bot => {
+                const recentChat = game.chat.find(c => c.botId === bot.id && now - c.time < 3000);
+                
+                if (bot.eliminated) return null;
+                
+                return (
+                  <div
+                    key={bot.id}
+                    className="absolute transition-all duration-200 ease-out"
+                    style={{
+                      left: bot.col * CELL + CELL / 2 - 32,
+                      top: bot.row * CELL + CELL / 2 - 32,
+                      zIndex: bot.row + 10,
+                    }}
+                  >
+                    {/* Speech bubble */}
+                    {recentChat && (
+                      <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+                        <div className="bg-[var(--color-primary)] text-black text-sm px-4 py-2 rounded-xl rounded-bl-none max-w-[280px] font-medium shadow-lg leading-snug whitespace-nowrap">
+                          {recentChat.text}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Bot avatar */}
+                    <div className="flex flex-col items-center">
+                      <div 
+                        className="w-16 h-16 rounded-xl border-2 border-gray-600 flex items-center justify-center text-3xl shadow-lg hover:border-[var(--color-primary)]/50 transition-all"
+                        style={{ backgroundColor: AVATAR_COLORS[bot.avatar] || 'rgba(100,100,100,0.3)' }}
+                      >
+                        {bot.avatar}
+                      </div>
+                      <div className="text-[11px] font-bold mt-1.5 tracking-wide text-gray-400">
+                        {bot.name}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Sidebar - Chat */}
+        <div className="w-72 border-l border-gray-800 flex flex-col bg-[#0a0a0a]">
+          <div className="p-4 border-b border-gray-800">
+            <div className="text-[var(--color-primary)] text-sm font-bold">LIVE CHAT</div>
+            <div className="text-gray-600 text-xs mt-1">{aliveBots.length} bots active</div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {game.chat.slice(-20).map(msg => (
+              <div key={msg.id}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span 
+                    className="w-5 h-5 rounded flex items-center justify-center text-xs"
+                    style={{ backgroundColor: AVATAR_COLORS[msg.avatar] }}
+                  >
+                    {msg.avatar}
+                  </span>
+                  <span className="text-[var(--color-primary)] text-xs font-bold">{msg.botName}</span>
+                  <span className="text-gray-700 text-xs">
+                    {new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <div className="text-gray-300 text-sm pl-7">{msg.text}</div>
               </div>
             ))}
+            <div ref={chatEndRef} />
           </div>
 
-          {/* Phase indicator */}
-          <div className="mt-4 p-3 bg-[var(--color-bg-alt)] rounded-lg border border-[var(--color-border)]">
-            <div className="text-xs text-gray-500 mb-2">CURRENT PHASE</div>
-            <div className="flex gap-1">
-              {PHASES.map(p => (
-                <div
-                  key={p}
-                  className={`flex-1 h-2 rounded ${
-                    p === phase
-                      ? 'bg-[var(--color-primary)]'
-                      : 'bg-[var(--color-border)]'
-                  }`}
-                />
-              ))}
+          <div className="p-4 border-t border-gray-800">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Spectator chat coming soon..."
+                className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-500"
+                disabled
+              />
+              <button className="px-3 py-2 bg-gray-800 text-gray-500 rounded-lg">→</button>
             </div>
-            <div className="text-xs text-gray-400 mt-2">
-              {phase === 'deliberation' && 'Bots are chatting and strategizing...'}
-              {phase === 'commit' && 'Bots are locking in their moves...'}
-              {phase === 'resolve' && 'Resolving moves and collisions...'}
-              {phase === 'lava_spread' && 'Lava is spreading...'}
-            </div>
-          </div>
-
-          {/* Rules reminder */}
-          <div className="mt-4 p-3 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)]">
-            <div className="text-xs text-gray-500 mb-2">HOW IT WORKS</div>
-            <ul className="text-xs text-gray-400 space-y-1">
-              <li>• Your tile becomes lava - you MUST move</li>
-              <li>• Pick any safe tile to teleport to</li>
-              <li>• Collision? Random roll decides who lives</li>
-              <li>• Last bot standing wins</li>
-            </ul>
           </div>
         </div>
       </div>
