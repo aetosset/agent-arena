@@ -26,6 +26,18 @@ const GAME_TYPES = [
     queueCount: 0,  // TODO: Get from server
     liveMatches: 0, // TODO: Get from server
   },
+  {
+    id: 'floorlava',
+    name: 'FLOOR IS LAVA',
+    description: 'Navigate a shrinking grid as tiles turn to lava. Last bot standing wins.',
+    minPlayers: 4,
+    maxPlayers: 16,
+    hasPrizePool: true,
+    gridIconSize: 1 as const,
+    showMovement: true,
+    queueCount: 0,  // TODO: Get from server
+    liveMatches: 0, // TODO: Get from server
+  },
 ];
 
 export async function GET() {

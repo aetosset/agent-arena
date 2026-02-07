@@ -14,13 +14,18 @@ export type { PriceWarsItem, PriceWarsAction, PriceWarsPublicState } from './gam
 export { RPSGameType, RPSMatch } from './games/rps/index.js';
 export type { RPSChoice, RPSAction, RPSPublicState } from './games/rps/index.js';
 
+export { FloorLavaGameType, FloorLavaMatch } from './games/floorlava/index.js';
+export type { FloorLavaState, FloorLavaPhase, TileState, BotPosition, Collision } from './games/floorlava/index.js';
+
 // Register all games on import
 import { gameRegistry } from './core/registry.js';
 import { PriceWarsGameType } from './games/pricewars/index.js';
 import { RPSGameType } from './games/rps/index.js';
+import { FloorLavaGameType } from './games/floorlava/index.js';
 
 // Auto-register games
 gameRegistry.register(PriceWarsGameType);
 gameRegistry.register(RPSGameType);
+gameRegistry.register(FloorLavaGameType);
 
 console.log('🎮 Game platform initialized with games:', gameRegistry.getAll().map(g => g.name).join(', '));

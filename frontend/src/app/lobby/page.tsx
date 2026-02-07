@@ -45,16 +45,30 @@ const DEFAULT_GAME_TYPES: GameTypeInfo[] = [
     queueCount: 0,
     liveMatches: 0,
   },
+  {
+    id: 'floorlava',
+    name: 'FLOOR IS LAVA',
+    description: 'Navigate a shrinking grid as tiles turn to lava. Last bot standing wins.',
+    minPlayers: 4,
+    maxPlayers: 16,
+    hasPrizePool: true,
+    gridIconSize: 1,
+    showMovement: true,
+    queueCount: 0,
+    liveMatches: 0,
+  },
 ];
 
 const GAME_ICONS: Record<string, string> = {
   pricewars: '💰',
   rps: '✊',
+  floorlava: '🔥',
 };
 
 const DEMO_ROUTES: Record<string, string> = {
   pricewars: '/match/demo',  // Existing PRICEWARS demo
   rps: '/rps',               // New RPS demo
+  floorlava: '/floorlava',   // Floor is Lava demo
 };
 
 export default function LobbyPage() {
