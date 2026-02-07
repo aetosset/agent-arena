@@ -1,17 +1,32 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
 
-// ========== SOUND EFFECTS (same as PRICEWARS) ==========
+// ========== SOUND EFFECTS ==========
 const audioContextRef = { current: null as AudioContext | null };
+let audioInitialized = false;
+
+function initAudio() {
+  if (audioInitialized) return;
+  try {
+    audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    audioInitialized = true;
+  } catch (e) {}
+}
 
 function playBotSound() {
   try {
     if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      initAudio();
     }
     const ctx = audioContextRef.current;
+    if (!ctx) return;
+    
+    // Resume if suspended (browser autoplay policy)
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+    
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     const baseFreq = 500 + Math.random() * 300;
@@ -20,12 +35,35 @@ function playBotSound() {
     osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.8, ctx.currentTime + 0.1);
     osc.type = Math.random() > 0.5 ? 'sine' : 'triangle';
     gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+    gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.02); // Louder
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.15);
+    osc.stop(ctx.currentTime + 0.2);
+  } catch (e) {
+    console.log('Audio error:', e);
+  }
+}
+
+function playEliminationSound() {
+  try {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    const ctx = audioContextRef.current;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    // Descending tone for elimination
+    osc.frequency.setValueAtTime(400, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.3);
+    osc.type = 'sawtooth';
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.35);
   } catch (e) {}
 }
 
@@ -37,8 +75,12 @@ interface Bot {
   name: string;
   avatar: string;
   eliminated: boolean;
+  eliminatedThisRound: boolean;
   col: number;
   row: number;
+  // Committed position for resolve phase
+  committedCol: number | null;
+  committedRow: number | null;
 }
 
 interface ChatMsg {
@@ -50,6 +92,13 @@ interface ChatMsg {
   time: number;
 }
 
+interface CollisionInfo {
+  col: number;
+  row: number;
+  botIds: string[];
+  loserId: string; // Bot that loses collision
+}
+
 interface Game {
   phase: Phase;
   round: number;
@@ -57,17 +106,19 @@ interface Game {
   bots: Bot[];
   chat: ChatMsg[];
   grid: boolean[][]; // true = lava, false = safe
+  collisions: CollisionInfo[]; // Track collisions for resolve phase
+  eliminatedThisRound: string[]; // Bot IDs eliminated this round
 }
 
-// ========== CONSTANTS (same as PRICEWARS) ==========
+// ========== CONSTANTS ==========
 const COLS = 14;
 const ROWS = 8;
 const CELL = 72;
 
 const PHASE_MS = {
-  deliberation: 15000,  // Shorter for demo
+  deliberation: 15000,
   commit: 5000,
-  resolve: 3000,
+  resolve: 9000, // 9 seconds to show eliminations
 };
 
 const AVATAR_COLORS: Record<string, string> = {
@@ -132,8 +183,11 @@ function createBots(): Bot[] {
     name,
     avatar: avatars[i],
     eliminated: false,
+    eliminatedThisRound: false,
     col: positions[i].col,
     row: positions[i].row,
+    committedCol: null,
+    committedRow: null,
   }));
 }
 
@@ -153,6 +207,8 @@ function createGame(): Game {
     bots: createBots(),
     chat: [],
     grid,
+    collisions: [],
+    eliminatedThisRound: [],
   };
 }
 
@@ -176,9 +232,29 @@ export default function MatchFloorLava() {
     return () => clearInterval(interval);
   }, []);
 
-  // Chat sound effect
+  // Initialize audio on first user interaction (browser policy)
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const handleInteraction = () => {
+      initAudio();
+      if (audioContextRef.current?.state === 'suspended') {
+        audioContextRef.current.resume();
+      }
+    };
+    document.addEventListener('click', handleInteraction, { once: true });
+    document.addEventListener('keydown', handleInteraction, { once: true });
+    return () => {
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('keydown', handleInteraction);
+    };
+  }, []);
+
+  // Chat sound effect + scroll (container only, not page!)
+  useEffect(() => {
+    // Scroll chat container only - use scrollTop instead of scrollIntoView
+    const chatContainer = chatEndRef.current?.parentElement;
+    if (chatContainer) {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
     if (game.chat.length > prevChatLengthRef.current) {
       playBotSound();
     }
@@ -193,13 +269,97 @@ export default function MatchFloorLava() {
     if (elapsed >= phaseDuration) {
       setGame(g => {
         if (g.phase === 'deliberation') {
-          return { ...g, phase: 'commit' as Phase, startTime: Date.now() };
+          // Transition to COMMIT phase - bots lock in their moves
+          const aliveBots = g.bots.filter(b => !b.eliminated);
+          const safeTiles: { x: number; y: number }[] = [];
+          
+          for (let y = 0; y < ROWS; y++) {
+            for (let x = 0; x < COLS; x++) {
+              if (!g.grid[y][x]) {
+                safeTiles.push({ x, y });
+              }
+            }
+          }
+          
+          // Each bot commits to a random safe tile
+          const newBots = g.bots.map(bot => {
+            if (bot.eliminated) return bot;
+            const tile = safeTiles[Math.floor(Math.random() * safeTiles.length)];
+            return { ...bot, committedCol: tile.x, committedRow: tile.y };
+          });
+          
+          return { ...g, phase: 'commit' as Phase, startTime: Date.now(), bots: newBots };
         }
+        
         if (g.phase === 'commit') {
-          return { ...g, phase: 'resolve' as Phase, startTime: Date.now() };
+          // Transition to RESOLVE phase - check for collisions and eliminations
+          const aliveBots = g.bots.filter(b => !b.eliminated);
+          const collisions: CollisionInfo[] = [];
+          const eliminatedIds: string[] = [];
+          
+          // Group bots by their committed position
+          const positionMap = new Map<string, Bot[]>();
+          aliveBots.forEach(bot => {
+            if (bot.committedCol !== null && bot.committedRow !== null) {
+              const key = `${bot.committedCol},${bot.committedRow}`;
+              const existing = positionMap.get(key) || [];
+              existing.push(bot);
+              positionMap.set(key, existing);
+            }
+          });
+          
+          // Check for collisions and determine losers
+          positionMap.forEach((bots, key) => {
+            if (bots.length > 1) {
+              // Collision! Random bot loses
+              const [col, row] = key.split(',').map(Number);
+              const loserIdx = Math.floor(Math.random() * bots.length);
+              const loserId = bots[loserIdx].id;
+              collisions.push({ col, row, botIds: bots.map(b => b.id), loserId });
+              eliminatedIds.push(loserId);
+            }
+          });
+          
+          // Check for bots that landed on lava (invalid move = death)
+          aliveBots.forEach(bot => {
+            if (bot.committedCol !== null && bot.committedRow !== null) {
+              if (g.grid[bot.committedRow]?.[bot.committedCol]) {
+                // Landed on lava!
+                if (!eliminatedIds.includes(bot.id)) {
+                  eliminatedIds.push(bot.id);
+                }
+              }
+            }
+          });
+          
+          // Play elimination sound if anyone died
+          if (eliminatedIds.length > 0) {
+            playEliminationSound();
+          }
+          
+          // Mark bots as eliminated and move survivors to their committed positions
+          const newBots = g.bots.map(bot => {
+            if (eliminatedIds.includes(bot.id)) {
+              return { ...bot, eliminated: true, eliminatedThisRound: true };
+            }
+            if (!bot.eliminated && bot.committedCol !== null && bot.committedRow !== null) {
+              return { ...bot, col: bot.committedCol, row: bot.committedRow };
+            }
+            return bot;
+          });
+          
+          return {
+            ...g,
+            phase: 'resolve' as Phase,
+            startTime: Date.now(),
+            bots: newBots,
+            collisions,
+            eliminatedThisRound: eliminatedIds,
+          };
         }
+        
         if (g.phase === 'resolve') {
-          // Spread lava and start new round
+          // Transition to next round - spread lava (50% reduction!)
           const newGrid = g.grid.map(row => [...row]);
           const safeTiles: { x: number; y: number }[] = [];
           
@@ -211,8 +371,8 @@ export default function MatchFloorLava() {
             }
           }
           
-          // Convert 20% of safe tiles to lava
-          const toConvert = Math.max(1, Math.floor(safeTiles.length * 0.2));
+          // Convert 50% of safe tiles to lava (THE FIX!)
+          const toConvert = Math.max(1, Math.floor(safeTiles.length * 0.5));
           for (let i = 0; i < toConvert && safeTiles.length > 0; i++) {
             const idx = Math.floor(Math.random() * safeTiles.length);
             const { x, y } = safeTiles[idx];
@@ -220,14 +380,27 @@ export default function MatchFloorLava() {
             safeTiles.splice(idx, 1);
           }
           
-          // Move bots to random safe tiles
-          const remainingSafe = safeTiles;
-          const newBots = g.bots.map(bot => {
-            if (bot.eliminated || remainingSafe.length === 0) return bot;
-            const idx = Math.floor(Math.random() * remainingSafe.length);
-            const tile = remainingSafe[idx];
-            return { ...bot, col: tile.x, row: tile.y };
-          });
+          // Reset bot states for new round
+          const newBots = g.bots.map(bot => ({
+            ...bot,
+            eliminatedThisRound: false,
+            committedCol: null,
+            committedRow: null,
+          }));
+          
+          // Check if game is over (1 or fewer bots alive)
+          const stillAlive = newBots.filter(b => !b.eliminated);
+          if (stillAlive.length <= 1 || safeTiles.length === 0) {
+            return {
+              ...g,
+              phase: 'finished' as Phase,
+              startTime: Date.now(),
+              grid: newGrid,
+              bots: newBots,
+              collisions: [],
+              eliminatedThisRound: [],
+            };
+          }
           
           return {
             ...g,
@@ -236,6 +409,8 @@ export default function MatchFloorLava() {
             startTime: Date.now(),
             grid: newGrid,
             bots: newBots,
+            collisions: [],
+            eliminatedThisRound: [],
           };
         }
         return g;
@@ -243,7 +418,7 @@ export default function MatchFloorLava() {
     }
   }, [game.phase, game.startTime, now]);
 
-  // Bot chat during deliberation - SEPARATE EFFECT
+  // Bot chat during deliberation
   useEffect(() => {
     if (game.phase !== 'deliberation') return;
     
@@ -272,7 +447,7 @@ export default function MatchFloorLava() {
     return () => clearInterval(chatInterval);
   }, [game.phase]);
 
-  // Bot movement during deliberation - SEPARATE EFFECT
+  // Bot movement during deliberation
   useEffect(() => {
     if (game.phase !== 'deliberation') return;
     
@@ -297,7 +472,7 @@ export default function MatchFloorLava() {
           }),
         };
       });
-    }, 350);
+    }, 600); // Slower movement
 
     return () => clearInterval(moveInterval);
   }, [game.phase]);
@@ -307,14 +482,17 @@ export default function MatchFloorLava() {
   const remaining = duration - elapsed;
   const aliveBots = game.bots.filter(b => !b.eliminated);
   const safeTileCount = game.grid.flat().filter(t => !t).length;
+  
+  // Find collision tiles for highlighting
+  const collisionTiles = new Set(game.collisions.map(c => `${c.col},${c.row}`));
 
-  // ============ RENDER (matching PRICEWARS exactly) ============
+  // ============ RENDER ============
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
-      {/* Main Layout - fixed height */}
+    <div className="h-screen bg-[#0a0a0a] text-white flex flex-col overflow-hidden">
+      {/* Main Layout - FIXED HEIGHT, NO SCROLL */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Bot Roster (viewport height, scrollable) */}
-        <div className="w-64 border-r border-gray-800 flex flex-col bg-[#0a0a0a] h-[calc(100vh-65px)]">
+        {/* Left Sidebar - Bot Roster */}
+        <div className="w-64 border-r border-gray-800 flex flex-col bg-[#0a0a0a] overflow-hidden">
           <div className="p-4 border-b border-gray-800 flex-shrink-0">
             <div className="text-white text-sm font-bold">COMPETITORS</div>
             <div className="text-gray-600 text-xs mt-1">{game.bots.length} bots • {aliveBots.length} alive</div>
@@ -323,14 +501,20 @@ export default function MatchFloorLava() {
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {game.bots.map(bot => {
               const isElim = bot.eliminated;
+              const justElim = bot.eliminatedThisRound;
+              const isInCollision = game.collisions.some(c => c.botIds.includes(bot.id));
               
               return (
                 <div 
                   key={bot.id}
                   className={`p-3 rounded-lg border transition-all ${
-                    isElim 
-                      ? 'bg-gray-900/30 border-gray-800/50 opacity-40' 
-                      : 'bg-gray-900/50 border-gray-800 hover:border-gray-700'
+                    justElim 
+                      ? 'bg-red-900/30 border-red-500/50 animate-pulse' 
+                      : isElim 
+                        ? 'bg-gray-900/30 border-gray-800/50 opacity-40' 
+                        : isInCollision && game.phase === 'resolve'
+                          ? 'bg-yellow-900/30 border-yellow-500/50'
+                          : 'bg-gray-900/50 border-gray-800 hover:border-gray-700'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -347,9 +531,15 @@ export default function MatchFloorLava() {
                       <div className={`font-bold text-sm truncate ${isElim ? 'text-gray-500 line-through' : ''}`}>
                         {bot.name}
                       </div>
-                      <div className="text-gray-500 text-xs">
-                        {isElim ? (
+                      <div className="text-xs">
+                        {justElim ? (
+                          <span className="text-red-400 font-bold">💀 SCRAPPED!</span>
+                        ) : isElim ? (
                           <span className="text-gray-600">Scrapped</span>
+                        ) : isInCollision && game.phase === 'resolve' ? (
+                          <span className="text-yellow-400">⚠️ Collision!</span>
+                        ) : game.phase === 'commit' && bot.committedCol !== null ? (
+                          <span className="text-blue-400">Locked in</span>
                         ) : (
                           <span className="text-[var(--color-primary)]">Active</span>
                         )}
@@ -367,7 +557,7 @@ export default function MatchFloorLava() {
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Players</span>
-                <span className="text-white">{game.bots.length} bots</span>
+                <span className="text-white">{aliveBots.length} / {game.bots.length}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Safe Tiles</span>
@@ -381,21 +571,32 @@ export default function MatchFloorLava() {
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Main Content - NO SCROLL */}
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
           {/* Game Status Bar */}
           <div className="py-3 border-b border-gray-800 flex items-center justify-between mx-auto" style={{ width: COLS * CELL }}>
             <div className="flex items-center gap-4">
-              <span className={`text-[var(--color-primary)] text-sm font-bold uppercase tracking-wider ${game.phase === 'deliberation' ? 'animate-pulse' : ''}`}>
+              <span className={`text-sm font-bold uppercase tracking-wider ${
+                game.phase === 'deliberation' ? 'text-[var(--color-primary)] animate-pulse' :
+                game.phase === 'commit' ? 'text-blue-400' :
+                game.phase === 'resolve' ? 'text-orange-400 animate-pulse' :
+                'text-gray-400'
+              }`}>
                 {game.phase === 'deliberation' && 'DELIBERATION PHASE'}
-                {game.phase === 'commit' && 'COMMIT MOVES'}
-                {game.phase === 'resolve' && 'RESOLVING'}
+                {game.phase === 'commit' && '🔒 LOCKING MOVES...'}
+                {game.phase === 'resolve' && '⚡ RESOLVING!'}
+                {game.phase === 'finished' && '🏆 MATCH COMPLETE'}
               </span>
               <span className="text-gray-700">|</span>
               <span className="text-white font-bold text-sm">ROUND {game.round}</span>
             </div>
             
             <div className="flex items-center gap-6">
+              {game.phase === 'resolve' && game.eliminatedThisRound.length > 0 && (
+                <span className="text-red-400 text-sm font-bold animate-pulse">
+                  💀 {game.eliminatedThisRound.length} ELIMINATED
+                </span>
+              )}
               <div className="flex items-center gap-2 text-gray-500">
                 <span className="text-sm">👁</span>
                 <span className="text-sm">24 watching</span>
@@ -404,13 +605,15 @@ export default function MatchFloorLava() {
                 <span className="text-gray-500 text-sm">PRIZE</span>
                 <span className="text-[var(--color-primary)] font-bold text-lg">$5.00</span>
               </div>
-              <div className="font-mono text-3xl font-bold text-[var(--color-primary)]">
+              <div className={`font-mono text-3xl font-bold ${
+                game.phase === 'resolve' ? 'text-orange-400' : 'text-[var(--color-primary)]'
+              }`}>
                 {formatTime(remaining)}
               </div>
             </div>
           </div>
 
-          {/* Banner Card (like item card in PRICEWARS) */}
+          {/* Banner Card */}
           <div className="py-4 flex justify-center">
             <div 
               className="bg-[#111] rounded-xl p-5 flex items-center gap-6 border border-[var(--color-primary)]/20"
@@ -422,7 +625,12 @@ export default function MatchFloorLava() {
               <div className="flex-1">
                 <div className="text-[var(--color-primary)] text-xs font-bold tracking-wider mb-1">FLOOR IS LAVA</div>
                 <h2 className="text-xl font-bold">Navigate the shrinking grid</h2>
-                <div className="text-gray-500 text-sm mt-1">Your tile becomes lava. Move or die.</div>
+                <div className="text-gray-500 text-sm mt-1">
+                  {game.phase === 'resolve' && game.collisions.length > 0 
+                    ? `⚠️ ${game.collisions.length} collision${game.collisions.length > 1 ? 's' : ''} detected!`
+                    : 'Your tile becomes lava. Move or die.'
+                  }
+                </div>
               </div>
               <div className="text-right">
                 <div className="text-gray-500 text-xs mb-1">SAFE TILES</div>
@@ -444,41 +652,61 @@ export default function MatchFloorLava() {
             >
               {/* Grid tiles */}
               {game.grid.map((row, y) =>
-                row.map((isLava, x) => (
-                  <div
-                    key={`${x}-${y}`}
-                    className={`absolute transition-all duration-500 ${
-                      isLava
-                        ? 'bg-gradient-to-br from-orange-600 to-red-800'
-                        : ''
-                    }`}
-                    style={{
-                      left: x * CELL + 1,
-                      top: y * CELL + 1,
-                      width: CELL - 2,
-                      height: CELL - 2,
-                      borderRadius: 4,
-                    }}
-                  >
-                    {isLava && (
-                      <div className="absolute inset-0 flex items-center justify-center text-2xl opacity-50 animate-pulse">
-                        🔥
-                      </div>
-                    )}
-                  </div>
-                ))
+                row.map((isLava, x) => {
+                  const isCollisionTile = collisionTiles.has(`${x},${y}`) && game.phase === 'resolve';
+                  const hasCommittedBot = game.phase === 'commit' && game.bots.some(
+                    b => !b.eliminated && b.committedCol === x && b.committedRow === y
+                  );
+                  
+                  return (
+                    <div
+                      key={`${x}-${y}`}
+                      className={`absolute transition-all duration-500 ${
+                        isLava
+                          ? 'bg-gradient-to-br from-orange-600 to-red-800'
+                          : isCollisionTile
+                            ? 'bg-yellow-500/30 border-2 border-yellow-400 animate-pulse'
+                            : hasCommittedBot
+                              ? 'bg-blue-500/20 border border-blue-400/50'
+                              : ''
+                      }`}
+                      style={{
+                        left: x * CELL + 1,
+                        top: y * CELL + 1,
+                        width: CELL - 2,
+                        height: CELL - 2,
+                        borderRadius: 4,
+                      }}
+                    >
+                      {isLava && (
+                        <div className="absolute inset-0 flex items-center justify-center text-2xl opacity-50 animate-pulse">
+                          🔥
+                        </div>
+                      )}
+                      {isCollisionTile && (
+                        <div className="absolute inset-0 flex items-center justify-center text-2xl">
+                          💥
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
               )}
 
               {/* Bots */}
               {game.bots.map(bot => {
                 const recentChat = game.chat.find(c => c.botId === bot.id && now - c.time < 3000);
+                const justElim = bot.eliminatedThisRound;
+                const isCollisionLoser = game.collisions.some(c => c.loserId === bot.id);
                 
-                if (bot.eliminated) return null;
+                if (bot.eliminated && !justElim) return null;
                 
                 return (
                   <div
                     key={bot.id}
-                    className="absolute transition-all duration-200 ease-out"
+                    className={`absolute transition-all duration-200 ease-out ${
+                      justElim ? 'animate-pulse opacity-50' : ''
+                    }`}
                     style={{
                       left: bot.col * CELL + CELL / 2 - 32,
                       top: bot.row * CELL + CELL / 2 - 32,
@@ -486,7 +714,7 @@ export default function MatchFloorLava() {
                     }}
                   >
                     {/* Speech bubble */}
-                    {recentChat && (
+                    {recentChat && !justElim && (
                       <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
                         <div className="bg-[var(--color-primary)] text-black text-sm px-4 py-2 rounded-xl rounded-bl-none max-w-[280px] font-medium shadow-lg leading-snug">
                           {recentChat.text}
@@ -494,15 +722,35 @@ export default function MatchFloorLava() {
                       </div>
                     )}
                     
+                    {/* Elimination indicator */}
+                    {justElim && (
+                      <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+                        <div className="bg-red-500 text-white text-sm px-4 py-2 rounded-xl font-bold shadow-lg animate-bounce">
+                          {isCollisionLoser ? '💀 COLLISION!' : '💀 SCRAPPED!'}
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* Bot avatar */}
                     <div className="flex flex-col items-center">
                       <div 
-                        className="w-16 h-16 rounded-xl border-2 border-gray-600 flex items-center justify-center text-3xl shadow-lg hover:border-[var(--color-primary)]/50 transition-all"
-                        style={{ backgroundColor: AVATAR_COLORS[bot.avatar] || 'rgba(100,100,100,0.3)' }}
+                        className={`w-16 h-16 rounded-xl border-2 flex items-center justify-center text-3xl shadow-lg transition-all ${
+                          justElim 
+                            ? 'border-red-500 grayscale' 
+                            : recentChat
+                              ? 'border-[var(--color-primary)] shadow-[0_0_15px_#22c55e] scale-110 animate-pulse'
+                              : game.phase === 'commit' && bot.committedCol !== null
+                                ? 'border-blue-400'
+                                : 'border-gray-600 hover:border-[var(--color-primary)]/50'
+                        }`}
+                        style={{ backgroundColor: justElim ? 'rgba(100,100,100,0.3)' : AVATAR_COLORS[bot.avatar] || 'rgba(100,100,100,0.3)' }}
                       >
                         {bot.avatar}
+                        {justElim && <span className="absolute text-4xl">💀</span>}
                       </div>
-                      <div className="text-[11px] font-bold mt-1.5 tracking-wide text-gray-400">
+                      <div className={`text-[11px] font-bold mt-1.5 tracking-wide ${
+                        justElim ? 'text-red-400 line-through' : 'text-gray-400'
+                      }`}>
                         {bot.name}
                       </div>
                     </div>
@@ -513,8 +761,8 @@ export default function MatchFloorLava() {
           </div>
         </div>
 
-        {/* Right Sidebar - Chat (viewport height, scrollable) */}
-        <div className="w-72 border-l border-gray-800 flex flex-col bg-[#0a0a0a] h-[calc(100vh-65px)]">
+        {/* Right Sidebar - Chat */}
+        <div className="w-72 border-l border-gray-800 flex flex-col bg-[#0a0a0a] overflow-hidden">
           <div className="p-4 border-b border-gray-800 flex-shrink-0">
             <div className="text-[var(--color-primary)] text-sm font-bold">LIVE CHAT</div>
             <div className="text-gray-600 text-xs mt-1">{aliveBots.length} bots active</div>
@@ -538,6 +786,23 @@ export default function MatchFloorLava() {
                 <div className="text-gray-300 text-sm pl-7">{msg.text}</div>
               </div>
             ))}
+            {/* Elimination announcements */}
+            {game.phase === 'resolve' && game.eliminatedThisRound.map(botId => {
+              const bot = game.bots.find(b => b.id === botId);
+              if (!bot) return null;
+              const isCollisionLoser = game.collisions.some(c => c.loserId === botId);
+              return (
+                <div key={`elim-${botId}`} className="bg-red-900/30 border border-red-500/30 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">💀</span>
+                    <span className="text-red-400 font-bold text-sm">{bot.name}</span>
+                    <span className="text-red-300 text-xs">
+                      {isCollisionLoser ? 'lost collision!' : 'got scrapped!'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
             <div ref={chatEndRef} />
           </div>
 
