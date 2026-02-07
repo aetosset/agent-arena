@@ -284,7 +284,7 @@ export default function DesktopMatchView({
               <div className="w-8 h-8 bg-[#00ff00] rotate-45 flex items-center justify-center">
                 <span className="text-black font-bold text-sm -rotate-45">◆</span>
               </div>
-              <span className="font-bold text-xl tracking-tight">PRICE WARS</span>
+              <span className="font-bold text-xl tracking-tight">SCRAPYARD</span>
             </div>
             <span className="text-gray-500">|</span>
             <span className="text-gray-400 text-sm uppercase tracking-wider">

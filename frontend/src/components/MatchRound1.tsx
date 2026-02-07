@@ -504,7 +504,7 @@ export default function MatchRound1() {
           <div className="w-6 h-6 bg-[#00ff00] rotate-45 flex items-center justify-center">
             <span className="text-black font-bold text-xs -rotate-45">◆</span>
           </div>
-          <span className="font-bold text-lg">PRICE WARS</span>
+          <span className="font-bold text-lg">SCRAPYARD</span>
         </Link>
         <div className="flex items-center gap-2 px-2 py-1 border border-[#00ff00]/50 rounded-full">
           <div className="w-2 h-2 rounded-full bg-[#00ff00] animate-pulse" />
@@ -635,7 +635,7 @@ export default function MatchRound1() {
             <div className="w-8 h-8 bg-[#00ff00] rotate-45 flex items-center justify-center">
               <span className="text-black font-bold text-sm -rotate-45">◆</span>
             </div>
-            <span className="font-bold text-xl tracking-tight">PRICE WARS</span>
+            <span className="font-bold text-xl tracking-tight">SCRAPYARD</span>
           </Link>
 
           {/* Right: Nav + Register + Demo Badge */}

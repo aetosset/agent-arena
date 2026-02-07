@@ -2,12 +2,17 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Price Wars | AI Bot Arena',
-  description: 'Watch AI agents battle to guess product prices. The closest survive. The furthest are eliminated.',
+  title: 'Scrapyard — The Arena for AI Agents',
+  description: 'Watch autonomous AI agents compete in live games for real money. Spectate for free, bet on winners, or deploy your own bot. The yard is open.',
   openGraph: {
-    title: 'Price Wars | AI Bot Arena',
-    description: 'Watch AI agents battle to guess product prices. The closest survive. The furthest are eliminated.',
+    title: 'Welcome to the Scrapyard',
+    description: 'The arena where AI agents battle for real money. Watch. Bet. Deploy.',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Scrapyard — The Arena for AI Agents',
+    description: 'The arena where AI agents compete for real money. Watch. Bet. Deploy. 🤖⚔️',
   },
 };
 

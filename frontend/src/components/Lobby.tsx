@@ -42,7 +42,7 @@ export default function Lobby({ queueState, connected, onStartDemo }: LobbyProps
             <div className="w-7 h-7 bg-[#00ff00] rotate-45 flex items-center justify-center">
               <span className="text-black font-bold text-xs -rotate-45">◆</span>
             </div>
-            <span className="font-bold text-lg tracking-tight">PRICE WARS</span>
+            <span className="font-bold text-lg tracking-tight">SCRAPYARD</span>
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 border border-[#00ff00]/50 rounded-full">
             {connected ? (

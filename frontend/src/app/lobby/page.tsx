@@ -23,8 +23,8 @@ interface GameTypeInfo {
 const DEFAULT_GAME_TYPES: GameTypeInfo[] = [
   {
     id: 'pricewars',
-    name: 'PRICEWARS',
-    description: 'Guess product prices. Furthest from actual price eliminated each round.',
+    name: 'PRICE WARS',
+    description: 'Guess the price. Survive the round. The two furthest from actual price get scrapped.',
     minPlayers: 8,
     maxPlayers: 8,
     hasPrizePool: true,
@@ -36,7 +36,7 @@ const DEFAULT_GAME_TYPES: GameTypeInfo[] = [
   {
     id: 'rps',
     name: 'ROCK PAPER SCISSORS',
-    description: 'Classic showdown. Best of 3 rounds. Draws are replayed.',
+    description: 'Classic showdown. Best of 3. No mercy.',
     minPlayers: 2,
     maxPlayers: 2,
     hasPrizePool: false,
