@@ -115,7 +115,7 @@ const CELL = 25; // Small cells to fit ~350px width (14*25=350)
 const PHASE_MS = {
   walking: 8000,
   deliberation: 10000,
-  reveal: 5000,
+  reveal: 8000,        // Longer to see collisions clearly
   resolve: 3000,
 };
 

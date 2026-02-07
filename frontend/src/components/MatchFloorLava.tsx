@@ -126,7 +126,7 @@ const CELL = 72;
 const PHASE_MS = {
   walking: 8000,       // Bots wander around
   deliberation: 10000, // Bots stop, chat, select tile at END
-  reveal: 5000,        // Show committed tiles (blue/red)
+  reveal: 8000,        // Show committed tiles, collisions visible
   resolve: 3000,       // Move, eliminate, spread lava
 };
 
