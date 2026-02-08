@@ -573,10 +573,6 @@ export default function LandingPage({ onViewLive }: LandingPageProps) {
                       </div>
                     ))}
                   </div>
-                  <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-                    <span>Collisions resolved by dice roll • Highest wins</span>
-                    <span>68 safe tiles remaining</span>
-                  </div>
                 </div>
 
                 {/* Right: Chat */}
