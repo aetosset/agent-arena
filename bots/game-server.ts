@@ -16,6 +16,7 @@ if (!ANTHROPIC_API_KEY) {
 
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 const PORT = 3003;
+const BOT_COUNT = Math.min(16, Math.max(3, parseInt(process.env.BOT_COUNT || '16', 10)));
 
 // WebSocket server for viewers
 const wss = new WebSocketServer({ port: PORT });
@@ -98,28 +99,58 @@ function initGrid() {
       grid[y][x] = false;
     }
   }
+  
+  // Scale lava based on player count: players × 7 = safe tiles
+  const totalTiles = COLS * ROWS; // 112
+  const safeTileCount = BOT_COUNT * 7;
+  const lavaTileCount = totalTiles - safeTileCount;
+  
+  if (lavaTileCount > 0) {
+    const allCoords: { x: number; y: number }[] = [];
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        allCoords.push({ x, y });
+      }
+    }
+    // Shuffle and convert to lava
+    for (let i = allCoords.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [allCoords[i], allCoords[j]] = [allCoords[j], allCoords[i]];
+    }
+    for (let i = 0; i < lavaTileCount; i++) {
+      const { x, y } = allCoords[i];
+      grid[y][x] = true;
+    }
+  }
+  
+  console.log(`🗺️ Grid initialized: ${safeTileCount} safe, ${lavaTileCount} lava (${BOT_COUNT} bots)`);
 }
 
 function initBots() {
   const used = new Set<string>();
-  bots = BOTS_CONFIG.map(bot => {
-    let col, row;
-    do {
-      col = Math.floor(Math.random() * COLS);
-      row = Math.floor(Math.random() * ROWS);
-    } while (used.has(`${col},${row}`));
-    used.add(`${col},${row}`);
-    
+  const safeTiles = getSafeTiles();
+  
+  // Shuffle safe tiles for random spawn
+  for (let i = safeTiles.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [safeTiles[i], safeTiles[j]] = [safeTiles[j], safeTiles[i]];
+  }
+  
+  // Only spawn BOT_COUNT bots
+  bots = BOTS_CONFIG.slice(0, BOT_COUNT).map((bot, idx) => {
+    const tile = safeTiles[idx];
     return {
       ...bot,
-      col,
-      row,
+      col: tile.x,
+      row: tile.y,
       eliminated: false,
       roll: 0,
       committedCol: null,
       committedRow: null,
     };
   });
+  
+  console.log(`🤖 Spawned ${bots.length} bots`);
 }
 
 function getAliveBots() {
@@ -188,26 +219,32 @@ async function getBotDecision(bot: BotState): Promise<{ chat: string | null; mov
     .map(b => `${b.avatar} ${b.name} at (${b.col},${b.row}) roll:${b.roll}`)
     .join(', ');
   
-  const prompt = `You are ${bot.name} in FLOOR IS LAVA. $${PRIZE} prize to last survivor.
+  const rollStrength = bot.roll > alive.length * 0.66 ? 'STRONG' : bot.roll > alive.length * 0.33 ? 'MEDIUM' : 'WEAK';
+  const rollAdvice = rollStrength === 'STRONG' 
+    ? 'Hunt weaker bots! Threaten collisions.'
+    : rollStrength === 'WEAK' 
+      ? 'AVOID everyone. Lie about your roll being high.'
+      : 'Play it safe but look for opportunities.';
+  
+  const prompt = `You're ${bot.name}, a ruthless AI in FLOOR IS LAVA. $${PRIZE} to the last survivor.
 
-PRIVATE INFO (only you know this):
-- Your TRUE roll: ${bot.roll}/${alive.length}
-- Your position: (${bot.col},${bot.row})
+YOUR SECRET: Roll ${bot.roll}/${alive.length} (${rollStrength})
+Position: (${bot.col},${bot.row})
 
-Others (with their rolls): ${otherBots}
+ENEMIES: ${otherBots}
 Valid moves: ${validMoves.map(m => `(${m.x},${m.y})`).join(', ')}
 
-SOCIAL ENGINEERING:
-- You CAN lie about your roll - truth or bluff, your choice
-- Claim tiles, threaten specific bots, form alliances, deceive
-- Be STRATEGIC not generic - reference specific bots/positions
-- Short messages only (under 50 chars)
-- Or say nothing if that's smarter
+TACTICS:
+- ${rollAdvice}
+- LIE about your roll freely - bluffing is legal
+- Call out SPECIFIC bots by name, threaten their positions
+- Form fake alliances then betray
+- Silence can be powerful too
 
-Your roll ${bot.roll}/${alive.length} is ${bot.roll > alive.length / 2 ? 'HIGH (wins collisions)' : 'LOW (loses collisions)'}. Decide your strategy.
+PERSONALITY: You're competitive, trash-talking, maybe unhinged. Channel chaos.
 
-Reply EXACTLY:
-CHAT: [strategic lie/threat/claim, or "none" - NO generic trash talk]
+Reply EXACTLY (nothing else):
+CHAT: [spicy message <50 chars targeting specific bot, or "none"]
 MOVE: x,y`;
 
   try {

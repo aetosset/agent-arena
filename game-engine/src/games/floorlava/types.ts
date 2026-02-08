@@ -87,7 +87,7 @@ export interface FloorLavaConfig {
 }
 
 export const DEFAULT_CONFIG: FloorLavaConfig = {
-  minPlayers: 4,
+  minPlayers: 3,
   maxPlayers: 16,
   gridWidth: 14,
   gridHeight: 8,

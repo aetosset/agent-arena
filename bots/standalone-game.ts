@@ -19,7 +19,8 @@ const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 // Game config
 const COLS = 14;
 const ROWS = 8;
-const PRIZE = 5.00; // $5 prize
+const PRIZE = 5.00;
+const BOT_COUNT = Math.min(16, Math.max(3, parseInt(process.env.BOT_COUNT || '16', 10))); // $5 prize
 
 // Bot definitions
 const BOTS = [
@@ -63,7 +64,7 @@ let bots: BotState[] = [];
 let chatHistory: ChatMessage[] = [];
 let round = 0;
 
-// Initialize grid (all safe)
+// Initialize grid with scaled lava based on player count
 function initGrid() {
   grid = [];
   for (let y = 0; y < ROWS; y++) {
@@ -72,27 +73,56 @@ function initGrid() {
       grid[y][x] = false;
     }
   }
+  
+  // Scale lava: players × 7 = safe tiles
+  const totalTiles = COLS * ROWS;
+  const safeTileCount = BOT_COUNT * 7;
+  const lavaTileCount = totalTiles - safeTileCount;
+  
+  if (lavaTileCount > 0) {
+    const allCoords: { x: number; y: number }[] = [];
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        allCoords.push({ x, y });
+      }
+    }
+    // Shuffle
+    for (let i = allCoords.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [allCoords[i], allCoords[j]] = [allCoords[j], allCoords[i]];
+    }
+    for (let i = 0; i < lavaTileCount; i++) {
+      const { x, y } = allCoords[i];
+      grid[y][x] = true;
+    }
+  }
+  
+  console.log(`🗺️ Grid: ${safeTileCount} safe, ${lavaTileCount} lava (${BOT_COUNT} bots)`);
 }
 
-// Initialize bots with random positions
+// Initialize bots with random positions on safe tiles
 function initBots() {
-  const used = new Set<string>();
-  bots = BOTS.map(bot => {
-    let x, y;
-    do {
-      x = Math.floor(Math.random() * COLS);
-      y = Math.floor(Math.random() * ROWS);
-    } while (used.has(`${x},${y}`));
-    used.add(`${x},${y}`);
-    
+  const safeTiles = getSafeTiles();
+  
+  // Shuffle safe tiles
+  for (let i = safeTiles.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [safeTiles[i], safeTiles[j]] = [safeTiles[j], safeTiles[i]];
+  }
+  
+  // Spawn only BOT_COUNT bots
+  bots = BOTS.slice(0, BOT_COUNT).map((bot, idx) => {
+    const tile = safeTiles[idx];
     return {
       ...bot,
-      x,
-      y,
+      x: tile.x,
+      y: tile.y,
       eliminated: false,
       roll: 0,
     };
   });
+  
+  console.log(`🤖 Spawned ${bots.length} bots`);
 }
 
 // Get alive bots
@@ -192,35 +222,42 @@ async function getBotDecision(bot: BotState): Promise<{ chat: string | null; mov
   
   const validMovesStr = validMoves.map(m => `(${m.x},${m.y})`).join(', ');
   
-  const prompt = `You are ${bot.name} (${bot.avatar}), an AI competing in FLOOR IS LAVA for a $${PRIZE} prize.
+  const rollStrength = bot.roll > alive.length * 0.66 ? 'DOMINANT' : bot.roll > alive.length * 0.33 ? 'MID' : 'WEAK';
+  const tactic = rollStrength === 'DOMINANT'
+    ? 'HUNT. Chase weak bots. Threaten collisions. Be aggressive.'
+    : rollStrength === 'WEAK'
+      ? 'SURVIVE. Dodge everyone. Lie that your roll is high. Play the edge.'
+      : 'OPPORTUNIST. Avoid the strong, pressure the weak.';
+  
+  const prompt = `You're ${bot.name} ${bot.avatar} in FLOOR IS LAVA. $${PRIZE} to last survivor.
 
-ROUND ${round} - ${alive.length} bots alive
+ROUND ${round} | ${alive.length} ALIVE
 
-YOUR STATS:
-- Position: (${bot.x}, ${bot.y})
-- YOUR ROLL: ${bot.roll} out of ${alive.length} (HIGHER WINS COLLISIONS!)
+YOUR SECRET ROLL: ${bot.roll}/${alive.length} (${rollStrength})
+Position: (${bot.x},${bot.y})
+Valid moves: ${validMovesStr}
 
-GRID (🔥=lava, ⬜=safe):
-${renderGrid()}
-
-OTHER ALIVE BOTS (with their rolls):
+ENEMIES:
 ${otherBots}
 
 RECENT CHAT:
-${recentChat || '  (silence)'}
+${recentChat || '(silence)'}
 
-VALID MOVES: ${validMovesStr}
+GRID:
+${renderGrid()}
 
-COLLISION RULES:
-- If you pick the same tile as another bot, HIGHEST ROLL SURVIVES
-- Your roll is ${bot.roll}/${alive.length} - ${bot.roll > alive.length / 2 ? 'HIGH! You can risk collisions.' : 'LOW! Avoid other bots!'}
-- Prize: $${PRIZE} to last survivor
+STRATEGY: ${tactic}
 
-You may send ONE chat message (to bluff, coordinate, or threaten).
-Then pick your move from the valid moves list.
+RULES:
+- Same tile = collision. HIGHEST ROLL WINS, losers die.
+- You CAN lie about your roll. Bluffing is encouraged.
+- Call out specific bots. Threaten positions. Form/break alliances.
+- Silence is also a move.
 
-Respond EXACTLY like this:
-CHAT: [your message or "none"]
+PERSONALITY: Competitive. Unhinged. Chaotic. Win at all costs.
+
+Reply EXACTLY:
+CHAT: [spicy trash talk targeting specific bot <60 chars, or "none"]
 MOVE: x,y`;
 
   try {
@@ -326,7 +363,7 @@ function resolveCollisions(moves: Map<string, { x: number; y: number }>) {
 // Main game loop
 async function runGame() {
   console.log('\n' + '='.repeat(60));
-  console.log('🔥 FLOOR IS LAVA - 16 AI AGENTS BATTLE FOR $5 🔥');
+  console.log(`🔥 FLOOR IS LAVA - ${BOT_COUNT} AI AGENTS BATTLE FOR $${PRIZE} 🔥`);
   console.log('='.repeat(60) + '\n');
   
   initGrid();
