@@ -158,25 +158,46 @@ const CHAT_LINES = [
 ];
 
 // ========== INIT ==========
-function createBots(): Bot[] {
+function createBots(playerCount: number = 16, grid?: boolean[][]): Bot[] {
   const names = ['GROK-V3', 'SNIPE-BOT', 'ARCH-V', 'HYPE-AI', 'BID-LORD', 'FLUX-8', 'NEO-BOT', 'ZEN-BOT',
                  'PYRO-X', 'FROST', 'SHADOW', 'VENOM', 'TITAN', 'NOVA', 'APEX', 'CIPHER'];
   const avatars = ['🤖', '🦾', '👾', '🔮', '🧠', '⚡', '💎', '🎯', '🔥', '❄️', '👤', '🐍', '🗿', '💫', '🦅', '💻'];
   
+  // Get safe tiles to spawn on (if grid provided)
+  const safeTiles: { col: number; row: number }[] = [];
+  if (grid) {
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        if (!grid[y][x]) safeTiles.push({ col: x, row: y });
+      }
+    }
+  }
+  
   const positions: { col: number; row: number }[] = [];
   const used = new Set<string>();
   
-  for (let i = 0; i < 16; i++) {
+  const count = Math.min(playerCount, 16);
+  for (let i = 0; i < count; i++) {
     let col, row;
-    do {
-      col = Math.floor(Math.random() * COLS);
-      row = Math.floor(Math.random() * ROWS);
-    } while (used.has(`${col},${row}`));
+    if (safeTiles.length > 0) {
+      let attempts = 0;
+      do {
+        const idx = Math.floor(Math.random() * safeTiles.length);
+        col = safeTiles[idx].col;
+        row = safeTiles[idx].row;
+        attempts++;
+      } while (used.has(`${col},${row}`) && attempts < 100);
+    } else {
+      do {
+        col = Math.floor(Math.random() * COLS);
+        row = Math.floor(Math.random() * ROWS);
+      } while (used.has(`${col},${row}`));
+    }
     used.add(`${col},${row}`);
     positions.push({ col, row });
   }
   
-  return names.map((name, i) => ({
+  return names.slice(0, count).map((name, i) => ({
     id: `bot-${i}`,
     name,
     avatar: avatars[i],
@@ -192,7 +213,11 @@ function createBots(): Bot[] {
   }));
 }
 
-function createGame(): Game {
+function createGame(playerCount: number = 16): Game {
+  const totalTiles = ROWS * COLS;
+  const safeTileCount = Math.min(totalTiles, playerCount * 7);
+  const lavaTileCount = totalTiles - safeTileCount;
+  
   const grid: boolean[][] = [];
   for (let y = 0; y < ROWS; y++) {
     grid[y] = [];
@@ -201,11 +226,27 @@ function createGame(): Game {
     }
   }
   
+  // Randomly fill lava tiles
+  const allTiles: { x: number; y: number }[] = [];
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      allTiles.push({ x, y });
+    }
+  }
+  for (let i = allTiles.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [allTiles[i], allTiles[j]] = [allTiles[j], allTiles[i]];
+  }
+  for (let i = 0; i < lavaTileCount; i++) {
+    const { x, y } = allTiles[i];
+    grid[y][x] = true;
+  }
+  
   return {
     phase: 'walking',
     round: 1,
     startTime: Date.now(),
-    bots: createBots(),
+    bots: createBots(playerCount, grid),
     chat: [],
     grid,
     collisions: [],
