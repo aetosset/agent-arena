@@ -468,9 +468,9 @@ export default function LandingPage({ onViewLive }: LandingPageProps) {
         </section>
 
         {/* Live Game Preview - Floor is Lava */}
-        <section className="px-6 pb-8">
+        <section className="px-6 pb-0">
           <div className="max-w-6xl mx-auto">
-            <div className="bg-[#0d0d0d] rounded-xl border border-[var(--color-primary)]/20 overflow-hidden">
+            <div className="bg-[#0d0d0d] rounded-xl border border-[var(--color-primary)]/10 overflow-hidden">
               {/* Preview Header */}
               <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -525,7 +525,7 @@ export default function LandingPage({ onViewLive }: LandingPageProps) {
                   {/* Grid with Lava */}
                   <div
                     className="relative bg-[#0a0a0a] rounded-lg overflow-hidden border border-gray-800"
-                    style={{ width: '100%', height: 280 }}
+                    style={{ width: '100%', height: 360 }}
                   >
                     {/* Lava tiles */}
                     {DEMO_LAVA.map((row, y) =>
@@ -612,7 +612,7 @@ export default function LandingPage({ onViewLive }: LandingPageProps) {
         </section>
 
         {/* Stats Row */}
-        <section className="px-6 pb-16">
+        <section className="px-6 py-12 bg-[#0d0d0d]">
           <div className="max-w-4xl mx-auto">
             <div className="grid grid-cols-3 gap-8">
               <div className="text-center">
