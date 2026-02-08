@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import MatchFloorLava from '@/components/MatchFloorLava';
-import MatchFloorLavaMobile from '@/components/MatchFloorLavaMobile';
+import MatchFloorLavaMobileHorizontal from '@/components/MatchFloorLavaMobileHorizontal';
 
 export default function FloorLavaPage() {
   const [isMobile, setIsMobile] = useState(false);
@@ -32,7 +32,7 @@ export default function FloorLavaPage() {
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
       <Header />
-      {isMobile ? <MatchFloorLavaMobile /> : <MatchFloorLava />}
+      {isMobile ? <MatchFloorLavaMobileHorizontal /> : <MatchFloorLava />}
     </div>
   );
 }

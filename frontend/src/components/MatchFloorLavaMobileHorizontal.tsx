@@ -698,10 +698,10 @@ export default function MatchFloorLavaMobileHorizontal() {
         )}
       </div>
 
-      {/* Agent Rows - 2 rows of 8, horizontally scrollable */}
-      <div className="border-b border-gray-800 py-2 flex-shrink-0 space-y-2">
+      {/* Agent Rows - 2 rows of 8, scaled to fit */}
+      <div className="border-b border-gray-800 py-1 px-1 flex-shrink-0 space-y-1">
         {/* Row 1: Bots 0-7 */}
-        <div className="flex gap-2 overflow-x-auto px-2" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex gap-1 justify-between">
           {game.bots.slice(0, 8).map(bot => {
             const isElim = bot.eliminated;
             const isSpeaking = speakingBotIds.has(bot.id);
@@ -710,10 +710,10 @@ export default function MatchFloorLavaMobileHorizontal() {
             return (
               <div
                 key={bot.id}
-                className={`flex-shrink-0 transition-all ${isElim ? 'opacity-40' : ''}`}
+                className={`flex-1 flex flex-col items-center transition-all ${isElim ? 'opacity-40' : ''}`}
               >
                 <div 
-                  className={`w-11 h-11 rounded-lg flex items-center justify-center text-xl relative transition-all ${
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg relative transition-all ${
                     justElim
                       ? 'border-2 border-red-500 grayscale'
                       : isSpeaking
@@ -725,14 +725,20 @@ export default function MatchFloorLavaMobileHorizontal() {
                   style={{ backgroundColor: isElim ? 'rgba(100,100,100,0.2)' : AVATAR_COLORS[bot.avatar] }}
                 >
                   {bot.avatar}
-                  {isElim && <span className="absolute text-red-500 text-sm">✕</span>}
+                  {isElim && <span className="absolute text-red-500 text-xs">✕</span>}
                 </div>
+                {/* Dice roll */}
+                {!isElim && bot.roll ? (
+                  <div className="text-[9px] text-blue-400 font-bold mt-0.5">🎲{bot.roll}</div>
+                ) : !isElim ? (
+                  <div className="text-[9px] text-gray-600 mt-0.5">•</div>
+                ) : null}
               </div>
             );
           })}
         </div>
         {/* Row 2: Bots 8-15 */}
-        <div className="flex gap-2 overflow-x-auto px-2" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex gap-1 justify-between">
           {game.bots.slice(8, 16).map(bot => {
             const isElim = bot.eliminated;
             const isSpeaking = speakingBotIds.has(bot.id);
@@ -741,10 +747,10 @@ export default function MatchFloorLavaMobileHorizontal() {
             return (
               <div
                 key={bot.id}
-                className={`flex-shrink-0 transition-all ${isElim ? 'opacity-40' : ''}`}
+                className={`flex-1 flex flex-col items-center transition-all ${isElim ? 'opacity-40' : ''}`}
               >
                 <div 
-                  className={`w-11 h-11 rounded-lg flex items-center justify-center text-xl relative transition-all ${
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg relative transition-all ${
                     justElim
                       ? 'border-2 border-red-500 grayscale'
                       : isSpeaking
@@ -756,8 +762,14 @@ export default function MatchFloorLavaMobileHorizontal() {
                   style={{ backgroundColor: isElim ? 'rgba(100,100,100,0.2)' : AVATAR_COLORS[bot.avatar] }}
                 >
                   {bot.avatar}
-                  {isElim && <span className="absolute text-red-500 text-sm">✕</span>}
+                  {isElim && <span className="absolute text-red-500 text-xs">✕</span>}
                 </div>
+                {/* Dice roll */}
+                {!isElim && bot.roll ? (
+                  <div className="text-[9px] text-blue-400 font-bold mt-0.5">🎲{bot.roll}</div>
+                ) : !isElim ? (
+                  <div className="text-[9px] text-gray-600 mt-0.5">•</div>
+                ) : null}
               </div>
             );
           })}
@@ -925,6 +937,20 @@ export default function MatchFloorLavaMobileHorizontal() {
         <div className="flex-1 overflow-y-auto px-2 py-1 space-y-1">
           {game.chat.slice(-30).map(msg => {
             const isSpeaking = now - msg.time < 3000;
+            const isCollision = msg.botId === 'system';
+            
+            // Special styling for collision alerts
+            if (isCollision) {
+              return (
+                <div 
+                  key={msg.id} 
+                  className="bg-red-900/40 border border-red-500/50 rounded px-2 py-1 animate-pulse"
+                >
+                  <span className="text-red-400 font-bold text-xs">🚨 {msg.text}</span>
+                </div>
+              );
+            }
+            
             return (
               <div 
                 key={msg.id} 

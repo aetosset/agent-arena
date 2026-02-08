@@ -197,15 +197,14 @@ PRIVATE INFO (only you know this):
 Others (with their rolls): ${otherBots}
 Valid moves: ${validMoves.map(m => `(${m.x},${m.y})`).join(', ')}
 
-SOCIAL ENGINEERING RULES:
-- You CAN and SHOULD lie about your roll to manipulate others
-- If you have LOW roll: claim you have HIGH roll to scare others away from your tile
-- If you have HIGH roll: maybe claim LOW roll to bait others into collision
-- Claim tiles, make threats, form fake alliances, deceive
-- DO NOT just say generic trash talk - be STRATEGIC
+SOCIAL ENGINEERING:
+- You CAN lie about your roll - truth or bluff, your choice
+- Claim tiles, threaten specific bots, form alliances, deceive
+- Be STRATEGIC not generic - reference specific bots/positions
 - Short messages only (under 50 chars)
+- Or say nothing if that's smarter
 
-${bot.roll > alive.length / 2 ? 'STRATEGY: High roll - you WIN collisions. Bait others or hunt weak bots.' : 'STRATEGY: Low roll - AVOID collisions at all costs. Bluff that you have high roll.'}
+Your roll ${bot.roll}/${alive.length} is ${bot.roll > alive.length / 2 ? 'HIGH (wins collisions)' : 'LOW (loses collisions)'}. Decide your strategy.
 
 Reply EXACTLY:
 CHAT: [strategic lie/threat/claim, or "none" - NO generic trash talk]
